@@ -1,0 +1,16 @@
+{
+  "name": "LINE Multi-Chat Manager",
+  "short_name": "LINE Viewer",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f0f0",
+  "theme_color": "#7494c0",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

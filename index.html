@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE Multi-Chat Manager v7.0</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#7494c0">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon.svg">
+</head>
+<body>
+    <div id="list-view" class="view active">
+        <header class="sticky-header">
+            <h1>トーク一覧</h1>
+            <label class="add-btn">
+                ＋
+                <input type="file" id="file-input" accept=".txt" style="display: none;" multiple>
+            </label>
+        </header>
+        <div id="chat-list" class="list-container"></div>
+    </div>
+
+    <!-- Chat Room View -->
+    <div id="room-view" class="view">
+        <header class="sticky-header room-header">
+            <div class="header-top">
+                <button id="back-btn" class="back-btn">＜</button>
+                <div class="title-container" style="display:flex; align-items:center; gap:5px; max-width:65%;">
+                    <h1 id="room-title">トークルーム</h1>
+                    <button id="edit-title-btn" class="icon-btn" title="名前を編集" style="font-size:16px; min-height:24px; min-width:24px; padding:0;">✏️</button>
+                    <button id="set-me-btn" class="icon-btn" title="自分を設定" style="font-size:16px; min-height:24px; min-width:24px; padding:0;">👤</button>
+                </div>
+                <button id="flip-btn" class="icon-btn" title="左右反転">⇄</button>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="keyword-search" placeholder="キーワード検索">
+                <!-- V5 Scroll Sync Header -->
+                <div class="date-jump-container" style="display:flex; align-items:center; background:rgba(255,255,255,0.2); border-radius:15px; padding:0 8px; cursor:pointer;" onclick="document.getElementById('date-btn').click();" title="日付ジャンプ">
+                    <span id="scroll-date-label" style="font-size:12px; margin-right:2px; white-space:nowrap; color:white; font-weight:bold;">----/--/--</span>
+                    <button id="date-btn" class="icon-btn" style="min-width:auto; min-height:30px; padding:0; pointer-events:none; font-size:16px;">📅</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="search-nav" class="search-nav hidden">
+            <button id="search-prev" class="nav-btn">∧</button>
+            <span id="search-count">0件 / 0件</span>
+            <button id="search-next" class="nav-btn">∨</button>
+            <button id="search-close" class="nav-btn" style="color: #bbb; padding-left: 10px;">×</button>
+        </div>
+
+        <div id="message-container" class="room-container">
+            <div id="virtual-spacer" class="virtual-spacer"></div>
+            <div id="message-list" class="message-list"></div>
+        </div>
+    </div>
+
+    <!-- Date Calendar Modal -->
+    <div id="date-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>日付ジャンプ</h3>
+                <button id="close-date-modal" class="close-btn">×</button>
+            </div>
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <button id="cal-prev-btn" class="nav-btn" style="color:#333;">◀</button>
+                    <span id="cal-month-label" style="font-weight:bold; font-size:16px;"></span>
+                    <button id="cal-next-btn" class="nav-btn" style="color:#333;">▶</button>
+                </div>
+                <div id="calendar-grid" class="calendar-grid"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search Result Modal -->
+    <div id="search-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>検索結果 (<span id="search-total-hits">0</span>件のヒット)</h3>
+                <button id="close-search-modal" class="close-btn">×</button>
+            </div>
+            <div id="search-result-list" class="modal-list"></div>
+        </div>
+    </div>
+
+    <div id="longpress-tooltip" class="longpress-tooltip hidden"></div>
+
+    <script src="db.js"></script>
+    <script src="parser.js"></script>
+    <script src="virtual-scroll.js"></script>
+    <script src="search.js"></script>
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW registered'))
+                .catch(err => console.log('SW registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
