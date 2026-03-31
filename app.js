@@ -142,14 +142,53 @@ async function loadChatList() {
     chatListContainer.innerHTML = '';
     
     if (chats.length === 0) {
-        chatListContainer.innerHTML = `<div style="padding:40px 20px; text-align:center; color:#888; font-size:14px;">右上の「＋」ボタンからLINEのトーク履歴（.txt）を追加してください</div>`;
+        chatListContainer.innerHTML = `<div style="padding:40px 20px; text-align:center; color:#888; font-size:14px; line-height:1.6;">トーク履歴がありません。<br>右上の「＋」ボタンから新しいファイルを読み込んでください。</div>`;
         return;
     }
     
     chats.reverse().forEach(chat => {
         const div = document.createElement('div');
         div.className = 'chat-item';
-        div.onclick = () => openChat(chat.id);
+        
+        // V8: Long-press deletion logic
+        let pressTimer = null;
+        let isPressingToDelete = false;
+        
+        const startPress = (e) => {
+            isPressingToDelete = false;
+            div.classList.add('holding');
+            pressTimer = setTimeout(async () => {
+                isPressingToDelete = true;
+                div.classList.remove('holding');
+                if (navigator.vibrate) navigator.vibrate(50);
+                
+                // Confirm dialog stops propagation safely for alert
+                const confirmDelete = confirm('このトーク履歴を完全に削除しますか？\n（この操作は元に戻せません）');
+                if (confirmDelete) {
+                    await LineChatDB.deleteChat(chat.id);
+                    await loadChatList();
+                }
+            }, 500);
+        };
+        
+        const clearTimer = () => {
+            clearTimeout(pressTimer);
+            div.classList.remove('holding');
+        };
+        
+        div.addEventListener('touchstart', startPress, {passive: true});
+        div.addEventListener('touchend', clearTimer);
+        div.addEventListener('touchmove', clearTimer);
+        div.addEventListener('touchcancel', clearTimer);
+        
+        div.addEventListener('mousedown', startPress);
+        div.addEventListener('mouseup', clearTimer);
+        div.addEventListener('mouseleave', clearTimer);
+
+        div.onclick = (e) => {
+            if (isPressingToDelete) return; // Prevent natural click when letting go of a matched long-press
+            openChat(chat.id);
+        };
         
         const sizeStr = chat.sizeKB ? `${chat.sizeKB.toLocaleString()} KB` : 'ファイル容量不明';
         const dateRangeStr = (chat.firstDate && chat.lastDate && chat.firstDate !== chat.lastDate) 
