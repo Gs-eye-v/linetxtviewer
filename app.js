@@ -6,6 +6,11 @@ let flipSender = false;
 let searchHighlightIndices = new Set();
 let activeSearchIndexValue = -1;
 
+const mainApp = document.getElementById('main-app');
+const lockScreen = document.getElementById('lock-screen');
+const passcodeInput = document.getElementById('passcode-input');
+const passcodeError = document.getElementById('passcode-error');
+
 const listView = document.getElementById('list-view');
 const roomView = document.getElementById('room-view');
 const chatListContainer = document.getElementById('chat-list');
@@ -13,8 +18,16 @@ const fileInput = document.getElementById('file-input');
 const backBtn = document.getElementById('back-btn');
 const roomTitle = document.getElementById('room-title');
 const editTitleBtn = document.getElementById('edit-title-btn');
-const setMeBtn = document.getElementById('set-me-btn'); // V7
+const setMeBtn = document.getElementById('set-me-btn'); 
 const flipBtn = document.getElementById('flip-btn');
+
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettingsBtn = document.getElementById('close-settings-modal');
+const passToggle = document.getElementById('password-toggle');
+const passSetupContainer = document.getElementById('password-setup-container');
+const newPassInput = document.getElementById('new-password');
+const savePassBtn = document.getElementById('save-password-btn');
 
 const listContainer = document.getElementById('message-list');
 const scrollContainer = document.getElementById('message-container');
@@ -25,6 +38,113 @@ vScroll = new VirtualScroll(scrollContainer, listContainer, spacerContainer);
 let tooltipTimer = null;
 const scrollDateLabel = document.getElementById('scroll-date-label');
 const longpressTooltip = document.getElementById('longpress-tooltip');
+
+// -- V9/V10 Auth Crypto & Boot --
+async function hashStr(str) {
+    const raw = new TextEncoder().encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', raw);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const savedHash = localStorage.getItem('app_password_hash');
+    if (savedHash) {
+        lockScreen.style.display = 'flex';
+        
+        const tryUnlock = async () => {
+            if (passcodeInput.value.length === 0) return;
+            passcodeError.textContent = '';
+            try {
+                const currentHash = await hashStr(passcodeInput.value);
+                if (currentHash === savedHash) {
+                    lockScreen.style.display = 'none';
+                    mainApp.style.display = 'flex';
+                    initApp();
+                } else {
+                    passcodeError.textContent = 'パスワードが違います';
+                    passcodeInput.value = '';
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                }
+            } catch(e) {
+                console.error('Unlock error:', e);
+            }
+        };
+
+        // Keypad mappings
+        document.querySelectorAll('.key-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const val = btn.textContent;
+                
+                if (val === 'Del') {
+                    passcodeInput.value = passcodeInput.value.slice(0, -1);
+                } else if (val === 'OK') {
+                    await tryUnlock();
+                } else {
+                    if (passcodeInput.value.length < 12) {
+                        passcodeInput.value += val;
+                    }
+                }
+            });
+        });
+
+        // native enter
+        passcodeInput.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                await tryUnlock();
+            }
+        });
+    } else {
+        mainApp.style.display = 'flex';
+        initApp();
+    }
+});
+
+// -- V10 Settings Modal & Save Logic --
+settingsBtn.onclick = () => {
+    passToggle.checked = !!localStorage.getItem('app_password_hash');
+    passSetupContainer.style.display = passToggle.checked ? 'block' : 'none';
+    newPassInput.value = '';
+    settingsModal.classList.remove('hidden');
+};
+closeSettingsBtn.onclick = () => settingsModal.classList.add('hidden');
+
+passToggle.onchange = () => {
+    if (passToggle.checked) {
+        passSetupContainer.style.display = 'block';
+    } else {
+        passSetupContainer.style.display = 'none';
+        localStorage.removeItem('app_password_hash');
+        alert('パスワードロックを無効にしました。');
+    }
+};
+
+savePassBtn.addEventListener('click', async (e) => {
+    e.preventDefault(); // Stop unseen reloads
+    const val = newPassInput.value;
+    
+    // Strict Validation
+    if (!/^[a-zA-Z0-9]{1,12}$/.test(val)) {
+        alert('パスワードは1〜12桁の英数字（記号不可）で入力してください。');
+        return;
+    }
+    
+    // Robust saving
+    savePassBtn.disabled = true;
+    try {
+        const hash = await hashStr(val);
+        localStorage.setItem('app_password_hash', hash);
+        alert('設定を保存しました');
+        settingsModal.classList.add('hidden');
+    } catch (err) {
+        console.error('Save passcode error:', err);
+        alert('パスワードの保存中にエラーが発生しました。');
+    } finally {
+        savePassBtn.disabled = false;
+    }
+});
+
 
 function showTooltip(text, x, y) {
     longpressTooltip.textContent = text;
@@ -60,7 +180,6 @@ vScroll.setRenderer((item, index) => {
     } else if (item.type === 'sys') {
         el.innerHTML = `<div class="date-label" style="background:rgba(0,0,0,0.1); color:#333;">${item.text}</div>`;
     } else {
-        // V7 exact sender alignment
         let isSelfMsg = false;
         if (currentChat && currentChat.myName) {
             isSelfMsg = (item.sender === currentChat.myName);
@@ -114,7 +233,6 @@ vScroll.setRenderer((item, index) => {
                 }
                 
                 tooltipTimer = setTimeout(() => {
-                    // Allowed OS selection passively
                     showTooltip(`${item.date} ${item.time}`, x, y);
                 }, 500); 
             };
@@ -137,6 +255,8 @@ async function initApp() {
     await loadChatList();
 }
 
+let openSwipeElement = null;
+
 async function loadChatList() {
     const chats = await LineChatDB.getAllChats();
     chatListContainer.innerHTML = '';
@@ -147,46 +267,143 @@ async function loadChatList() {
     }
     
     chats.reverse().forEach(chat => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'chat-item-wrapper';
+        
+        const deleteBtn = document.createElement('div');
+        deleteBtn.className = 'delete-btn-bg';
+        deleteBtn.textContent = '削除';
+        deleteBtn.onclick = async (e) => {
+            e.stopPropagation();
+            const confirmDelete = confirm('このトーク履歴を完全に削除しますか？\n（この操作は元に戻せません）');
+            if (confirmDelete) {
+                await LineChatDB.deleteChat(chat.id);
+                await loadChatList();
+            } else {
+                div.style.transform = `translateX(0px)`;
+                openSwipeElement = null;
+            }
+        };
+        wrapper.appendChild(deleteBtn);
+
         const div = document.createElement('div');
         div.className = 'chat-item';
         
-        // V8: Long-press deletion logic
-        let pressTimer = null;
-        let isPressingToDelete = false;
+        let startX = 0, startY = 0, currentX = 0;
+        let isDragging = false, isHorizontal = false;
+        let pressTimer = null, isHolding = false;
         
-        const startPress = (e) => {
-            isPressingToDelete = false;
-            div.classList.add('holding');
-            pressTimer = setTimeout(async () => {
-                isPressingToDelete = true;
+        const clearLongPress = () => {
+            clearTimeout(pressTimer);
+            if (isHolding) {
                 div.classList.remove('holding');
-                if (navigator.vibrate) navigator.vibrate(50);
-                
-                // Confirm dialog stops propagation safely for alert
-                const confirmDelete = confirm('このトーク履歴を完全に削除しますか？\n（この操作は元に戻せません）');
+                isHolding = false;
+            }
+        };
+
+        div.addEventListener('touchstart', (e) => {
+            if (openSwipeElement && openSwipeElement !== div) {
+                openSwipeElement.style.transform = `translateX(0px)`;
+                openSwipeElement = null;
+            }
+            if (!openSwipeElement || openSwipeElement !== div) {
+                div.style.transition = 'none';
+            }
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            isHorizontal = false;
+            
+            if (!openSwipeElement || openSwipeElement !== div) {
+                pressTimer = setTimeout(async () => {
+                    if (isDragging && !isHorizontal) {
+                        isHolding = true;
+                        div.classList.add('holding');
+                        if (navigator.vibrate) navigator.vibrate(50);
+                        
+                        const confirmDelete = confirm('このトーク履歴を完全に削除しますか？\n（元に戻せません）');
+                        div.classList.remove('holding');
+                        isHolding = false;
+                        if (confirmDelete) {
+                            await LineChatDB.deleteChat(chat.id);
+                            await loadChatList();
+                        }
+                    }
+                }, 600);
+            }
+        }, {passive: true});
+        
+        div.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const dx = e.touches[0].clientX - startX;
+            const dy = e.touches[0].clientY - startY;
+            
+            if (!isHorizontal) {
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+                    isHorizontal = true;
+                    clearLongPress();
+                } else if (Math.abs(dy) > 10) {
+                    isDragging = false; 
+                    clearLongPress();
+                    return;
+                }
+            }
+            
+            if (isHorizontal) {
+                e.cancelable && e.preventDefault(); 
+                currentX = dx;
+                if (openSwipeElement === div) currentX -= 80;
+                if (currentX > 0) currentX = 0; 
+                if (currentX < -80) currentX = -80 - (Math.abs(currentX)-80)*0.2; 
+                div.style.transform = `translateX(${currentX}px)`;
+            }
+        }, {passive: false});
+        
+        div.addEventListener('touchend', () => {
+            clearLongPress();
+            if (!isDragging) return;
+            isDragging = false;
+            div.style.transition = 'transform 0.2s ease-out';
+            if (currentX < -40) {
+                div.style.transform = `translateX(-80px)`;
+                openSwipeElement = div;
+            } else {
+                div.style.transform = `translateX(0px)`;
+                if (openSwipeElement === div) openSwipeElement = null;
+            }
+            currentX = 0;
+        });
+        
+        div.addEventListener('touchcancel', clearLongPress);
+        div.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        div.addEventListener('mousedown', (e) => {
+            startX = e.clientX; startY = e.clientY;
+            pressTimer = setTimeout(async () => {
+                isHolding = true;
+                div.classList.add('holding');
+                const confirmDelete = confirm('このトーク履歴を完全に削除しますか？\n（元に戻せません）');
+                div.classList.remove('holding');
+                isHolding = false;
                 if (confirmDelete) {
                     await LineChatDB.deleteChat(chat.id);
                     await loadChatList();
                 }
-            }, 500);
-        };
-        
-        const clearTimer = () => {
-            clearTimeout(pressTimer);
-            div.classList.remove('holding');
-        };
-        
-        div.addEventListener('touchstart', startPress, {passive: true});
-        div.addEventListener('touchend', clearTimer);
-        div.addEventListener('touchmove', clearTimer);
-        div.addEventListener('touchcancel', clearTimer);
-        
-        div.addEventListener('mousedown', startPress);
-        div.addEventListener('mouseup', clearTimer);
-        div.addEventListener('mouseleave', clearTimer);
+            }, 600);
+        });
+        div.addEventListener('mousemove', (e) => {
+            if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) clearLongPress();
+        });
+        div.addEventListener('mouseup', clearLongPress);
+        div.addEventListener('mouseleave', clearLongPress);
 
         div.onclick = (e) => {
-            if (isPressingToDelete) return; // Prevent natural click when letting go of a matched long-press
+            if (isHolding) return; 
+            if (div.style.transform && div.style.transform !== "translateX(0px)") {
+                div.style.transform = `translateX(0px)`;
+                openSwipeElement = null;
+                return; 
+            }
             openChat(chat.id);
         };
         
@@ -210,7 +427,9 @@ async function loadChatList() {
                 </div>
             </div>
         `;
-        chatListContainer.appendChild(div);
+        
+        wrapper.appendChild(div);
+        chatListContainer.appendChild(wrapper);
     });
 }
 
@@ -246,7 +465,6 @@ editTitleBtn.addEventListener('click', async () => {
     }
 });
 
-// V7 Sender Picker
 setMeBtn.addEventListener('click', async () => {
     if (!currentChat) return;
     
@@ -280,7 +498,6 @@ async function openChat(id) {
     const chat = await LineChatDB.getChatById(id);
     if (!chat) return;
     
-    // Auto deduction of myName to completely fix sender polarity if missing
     if (!chat.myName) {
         const uniqueSenders = new Set();
         for (const m of chat.messages) {
@@ -289,7 +506,7 @@ async function openChat(id) {
         }
         const senderList = Array.from(uniqueSenders);
         if (senderList.length >= 2) {
-            chat.myName = senderList[1]; // Usually 2nd speaker is exporter
+            chat.myName = senderList[1];
         } else if (senderList.length === 1) {
             chat.myName = senderList[0];
         }
@@ -325,5 +542,3 @@ flipBtn.addEventListener('click', () => {
     flipSender = !flipSender;
     vScroll.updateVisibleItems(true); 
 });
-
-document.addEventListener('DOMContentLoaded', initApp);

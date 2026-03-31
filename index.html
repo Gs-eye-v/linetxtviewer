@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LINE Multi-Chat Manager v7.0</title>
+    <title>LINE Multi-Chat Manager v10.0</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7494c0">
@@ -11,49 +11,79 @@
     <link rel="apple-touch-icon" href="icon.svg">
 </head>
 <body>
-    <div id="list-view" class="view active">
-        <header class="sticky-header">
-            <h1>トーク一覧</h1>
-            <label class="add-btn">
-                ＋
-                <input type="file" id="file-input" accept=".txt" style="display: none;" multiple>
-            </label>
-        </header>
-        <div id="chat-list" class="list-container"></div>
+    <!-- V10 Passcode Lock Screen Redesign -->
+    <div id="lock-screen" class="view" style="display: none; background-color: #f5f5f5; justify-content: center; align-items: center; z-index: 9999;">
+        <div style="text-align: center; color: #333; width: 100%; max-width: 400px; padding: 20px;">
+            <h2 style="margin-bottom: 30px; font-weight: 500; letter-spacing: 1px; color:#555; font-family:-apple-system, BlinkMacSystemFont, sans-serif;">Password Required</h2>
+            <input type="password" id="passcode-input" maxlength="12" style="width: 220px; padding: 15px; font-size: 28px; text-align: center; border-radius: 8px; border: 1px solid #ddd; outline: none; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); letter-spacing: 8px; color:#333; background:#fff;" placeholder="">
+            <br>
+            <p id="passcode-error" style="color: #ff3b30; font-size: 14px; min-height: 20px; font-weight: bold; margin-bottom: 10px;"></p>
+            
+            <div id="keypad">
+                <button class="key-btn">1</button>
+                <button class="key-btn">2</button>
+                <button class="key-btn">3</button>
+                <button class="key-btn">4</button>
+                <button class="key-btn">5</button>
+                <button class="key-btn">6</button>
+                <button class="key-btn">7</button>
+                <button class="key-btn">8</button>
+                <button class="key-btn">9</button>
+                <button class="key-btn" style="background:transparent; border:none; box-shadow:none; font-size:18px;">Del</button>
+                <button class="key-btn">0</button>
+                <button class="key-btn" style="background:transparent; border:none; box-shadow:none; font-size:18px; color:#00B900; font-weight:bold;">OK</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Chat Room View -->
-    <div id="room-view" class="view">
-        <header class="sticky-header room-header">
-            <div class="header-top">
-                <button id="back-btn" class="back-btn">＜</button>
-                <div class="title-container" style="display:flex; align-items:center; gap:5px; max-width:65%;">
-                    <h1 id="room-title">トークルーム</h1>
-                    <button id="edit-title-btn" class="icon-btn" title="名前を編集" style="font-size:16px; min-height:24px; min-width:24px; padding:0;">✏️</button>
-                    <button id="set-me-btn" class="icon-btn" title="自分を設定" style="font-size:16px; min-height:24px; min-width:24px; padding:0;">👤</button>
+    <!-- Main App Container -->
+    <div id="main-app" style="display: none; height: 100vh; flex-direction: column;">
+        <div id="list-view" class="view active">
+            <header class="sticky-header">
+                <h1>トーク一覧</h1>
+                <div style="display:flex; gap:10px;">
+                    <button id="settings-btn" class="icon-btn" title="設定" style="color:#777; font-size:20px; background:none; border:none; padding:0;">⚙️</button>
+                    <label class="add-btn">
+                        ＋
+                        <input type="file" id="file-input" accept=".txt" style="display: none;" multiple>
+                    </label>
                 </div>
-                <button id="flip-btn" class="icon-btn" title="左右反転">⇄</button>
-            </div>
-            <div class="search-bar">
-                <input type="text" id="keyword-search" placeholder="キーワード検索">
-                <!-- V5 Scroll Sync Header -->
-                <div class="date-jump-container" style="display:flex; align-items:center; background:rgba(255,255,255,0.2); border-radius:15px; padding:0 8px; cursor:pointer;" onclick="document.getElementById('date-btn').click();" title="日付ジャンプ">
-                    <span id="scroll-date-label" style="font-size:12px; margin-right:2px; white-space:nowrap; color:white; font-weight:bold;">----/--/--</span>
-                    <button id="date-btn" class="icon-btn" style="min-width:auto; min-height:30px; padding:0; pointer-events:none; font-size:16px;">📅</button>
-                </div>
-            </div>
-        </header>
-
-        <div id="search-nav" class="search-nav hidden">
-            <button id="search-prev" class="nav-btn">∧</button>
-            <span id="search-count">0件 / 0件</span>
-            <button id="search-next" class="nav-btn">∨</button>
-            <button id="search-close" class="nav-btn" style="color: #bbb; padding-left: 10px;">×</button>
+            </header>
+            <div id="chat-list" class="list-container"></div>
         </div>
 
-        <div id="message-container" class="room-container">
-            <div id="virtual-spacer" class="virtual-spacer"></div>
-            <div id="message-list" class="message-list"></div>
+        <!-- Chat Room View -->
+        <div id="room-view" class="view">
+            <header class="sticky-header room-header">
+                <div class="header-top">
+                    <button id="back-btn" class="back-btn">＜</button>
+                    <div class="title-container" style="display:flex; align-items:center; gap:5px; max-width:65%;">
+                        <h1 id="room-title">トークルーム</h1>
+                        <button id="edit-title-btn" class="icon-btn" title="名前を編集" style="font-size:16px; min-height:24px; min-width:24px; padding:0;">✏️</button>
+                        <button id="set-me-btn" class="icon-btn" title="自分を設定" style="font-size:16px; min-height:24px; min-width:24px; padding:0;">👤</button>
+                    </div>
+                    <button id="flip-btn" class="icon-btn" title="左右反転">⇄</button>
+                </div>
+                <div class="search-bar">
+                    <input type="text" id="keyword-search" placeholder="キーワード検索">
+                    <div class="date-jump-container" style="display:flex; align-items:center; background:rgba(255,255,255,0.2); border-radius:15px; padding:0 8px; cursor:pointer;" onclick="document.getElementById('date-btn').click();" title="日付ジャンプ">
+                        <span id="scroll-date-label" style="font-size:12px; margin-right:2px; white-space:nowrap; color:white; font-weight:bold;">----/--/--</span>
+                        <button id="date-btn" class="icon-btn" style="min-width:auto; min-height:30px; padding:0; pointer-events:none; font-size:16px;">📅</button>
+                    </div>
+                </div>
+            </header>
+
+            <div id="search-nav" class="search-nav hidden">
+                <button id="search-prev" class="nav-btn">∧</button>
+                <span id="search-count">0件 / 0件</span>
+                <button id="search-next" class="nav-btn">∨</button>
+                <button id="search-close" class="nav-btn" style="color: #bbb; padding-left: 10px;">×</button>
+            </div>
+
+            <div id="message-container" class="room-container">
+                <div id="virtual-spacer" class="virtual-spacer"></div>
+                <div id="message-list" class="message-list"></div>
+            </div>
         </div>
     </div>
 
@@ -86,6 +116,27 @@
         </div>
     </div>
 
+    <!-- V10 Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content" style="height: auto; padding: 20px;">
+            <div class="modal-header" style="border:none; padding:0 0 15px 0;">
+                <h3>設定</h3>
+                <button id="close-settings-modal" class="close-btn" style="padding:0; min-width:auto; min-height:auto;">×</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <label style="display:flex; align-items:center; justify-content:space-between; font-size:16px; padding: 10px 0;">
+                    <span>パスワードロック設定</span>
+                    <input type="checkbox" id="password-toggle" style="width:20px; height:20px;">
+                </label>
+                <div id="password-setup-container" style="display:none; margin-top:15px;">
+                    <input type="password" id="new-password" maxlength="12" placeholder="新しいパスコード (最大12文字)" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:5px; font-size:16px; margin-bottom:10px;">
+                    <button id="save-password-btn" style="width:100%; padding:10px; background:#00B900; color:white; border:none; border-radius:5px; font-size:16px; font-weight:bold; cursor:pointer;">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- V5 Tooltip -->
     <div id="longpress-tooltip" class="longpress-tooltip hidden"></div>
 
     <script src="db.js"></script>
