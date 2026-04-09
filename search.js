@@ -11,6 +11,10 @@ const searchPrev = document.getElementById('search-prev');
 const searchNext = document.getElementById('search-next');
 const searchClose = document.getElementById('search-close');
 
+const searchToggleBtn = document.getElementById('search-toggle-btn');
+const searchInputWrapper = document.getElementById('search-input-wrapper');
+const searchQuickCount = document.getElementById('search-quick-count');
+
 const dateBtn = document.getElementById('date-btn');
 const dateModal = document.getElementById('date-modal');
 const closeDateModalBtn = document.getElementById('close-date-modal');
@@ -34,6 +38,8 @@ document.addEventListener('chatOpened', () => {
     searchModal.classList.add('hidden');
     searchNav.classList.add('hidden');
     dateModal.classList.add('hidden');
+    if (searchToggleBtn) searchToggleBtn.style.color = '';
+    if (searchQuickCount) searchQuickCount.textContent = '';
 });
 
 closeSearchModalBtn.addEventListener('click', () => searchModal.classList.add('hidden'));
@@ -47,16 +53,19 @@ dateBtn.addEventListener('click', () => {
     let lastDate = null;
     
     currentChat.messages.forEach((msg, idx) => {
-        if (msg.type === 'date') { 
-            const match = msg.text.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+        if (msg.date) {
+            const match = msg.date.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
             if (match) {
                 const y = parseInt(match[1]);
                 const m = parseInt(match[2]);
                 const d = parseInt(match[3]);
                 const key = `${y}-${m}-${d}`;
                 if (validDatesMap[key] === undefined) {
-                    validDatesMap[key] = idx;
+                    validDatesMap[key] = { index: idx, count: 0 };
                     lastDate = { y, m: m - 1, d };
+                }
+                if (msg.type === 'msg') {
+                    validDatesMap[key].count++;
                 }
             }
         }
@@ -78,6 +87,7 @@ dateBtn.addEventListener('click', () => {
 function renderCalendar() {
     calGrid.innerHTML = '';
     calMonthLabel.textContent = `${currentCalYear}年 ${currentCalMonth + 1}月`;
+    calMonthLabel.style.cursor = 'pointer';
     
     const days = ['日','月','火','水','木','金','土'];
     days.forEach(d => {
@@ -101,13 +111,17 @@ function renderCalendar() {
         const key = `${currentCalYear}-${currentCalMonth + 1}-${i}`;
         
         cell.className = 'cal-cell';
-        cell.textContent = i;
+        cell.innerHTML = `<span>${i}</span>`;
         
-        if (validDatesMap[key] !== undefined) {
+        const data = validDatesMap[key];
+        if (data !== undefined) {
             cell.classList.add('cal-day_valid');
+            if (data.count > 0) {
+                cell.innerHTML += `<div class="cal-activity-badge" style="background:#00B900; width:6px; height:6px; border-radius:50%; padding:0; margin-top:5px; color:transparent; font-size:0;"></div>`;
+            }
             cell.onclick = () => {
                 dateModal.classList.add('hidden');
-                vScroll.scrollToIndex(validDatesMap[key]);
+                vScroll.scrollToIndex(data.index);
             };
         } else {
             cell.classList.add('cal-day_invalid');
@@ -115,6 +129,46 @@ function renderCalendar() {
         calGrid.appendChild(cell);
     }
 }
+
+calMonthLabel.addEventListener('click', () => {
+    // Generate month list based on validDatesMap
+    const monthCounts = {};
+    for (const key in validDatesMap) {
+        const parts = key.split('-');
+        const monthKey = `${parts[0]}-${parts[1]}`;
+        if (!monthCounts[monthKey]) monthCounts[monthKey] = 0;
+        monthCounts[monthKey] += validDatesMap[key].count;
+    }
+    
+    const sortedMonths = Object.keys(monthCounts).sort((a,b) => {
+        const aP = a.split('-').map(Number);
+        const bP = b.split('-').map(Number);
+        return (bP[0]*12 + bP[1]) - (aP[0]*12 + aP[1]);
+    });
+    
+    searchResultList.innerHTML = `<div style="padding:15px; font-weight:bold; border-bottom:1px solid var(--border-color); background:var(--surface-color); position:sticky; top:0;">カレンダー年月を選択</div>`;
+    sortedMonths.forEach(mKey => {
+        const parts = mKey.split('-');
+        const y = parseInt(parts[0]);
+        const m = parseInt(parts[1]);
+        const cnt = monthCounts[mKey];
+        const div = document.createElement('div');
+        div.className = 'modal-list-item';
+        div.style.flexDirection = 'row';
+        div.style.justifyContent = 'space-between';
+        div.innerHTML = `<span style="font-size:16px; font-weight:bold;">${y}年 ${m}月</span> <span style="font-size:14px; color:var(--text-muted);">${cnt}件</span>`;
+        div.onclick = () => {
+            currentCalYear = y;
+            currentCalMonth = m - 1;
+            renderCalendar();
+            searchModal.classList.add('hidden');
+        };
+        searchResultList.appendChild(div);
+    });
+    searchModal.querySelector('.modal-content').classList.remove('fullscreen');
+    searchTotalHits.parentElement.style.display = 'none'; // hide title in generic modal use
+    searchModal.classList.remove('hidden');
+});
 
 calPrevBtn.addEventListener('click', () => {
     currentCalMonth--;
@@ -128,20 +182,64 @@ calNextBtn.addEventListener('click', () => {
     renderCalendar();
 });
 
+let calStartX = 0;
+let calStartY = 0;
+calGrid.addEventListener('touchstart', (e) => {
+    calStartX = e.touches[0].clientX;
+    calStartY = e.touches[0].clientY;
+}, {passive:true});
+calGrid.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - calStartX;
+    const dy = e.changedTouches[0].clientY - calStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+        if (dx > 0) {
+            currentCalMonth--;
+            if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
+            renderCalendar();
+        } else {
+            currentCalMonth++;
+            if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
+            renderCalendar();
+        }
+    }
+});
+
 // KEYWORD SEARCH
+if (searchToggleBtn) {
+    searchToggleBtn.addEventListener('click', () => {
+        // フルスクリーン検索モーダルを開き、即座にフォーカス
+        searchModal.classList.remove('hidden');
+        setTimeout(() => kwSearchNode.focus(), 50);
+    });
+}
+
 kwSearchNode.addEventListener('input', (e) => {
+    const kw = e.target.value.trim().toLowerCase();
+    window.searchKeyword = kw;
+    
+    // 即時カウント（軽微な処理）
+    if (!kw || !currentChat) {
+        if (searchQuickCount) searchQuickCount.textContent = '';
+    } else {
+        let count = 0;
+        for (let i = 0; i < currentChat.messages.length; i++) {
+            const msg = currentChat.messages[i];
+            if (msg.type === 'msg' && msg.text.toLowerCase().includes(kw)) count++;
+        }
+        if (searchQuickCount) searchQuickCount.textContent = `${count}件`;
+    }
+
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-        const kw = e.target.value.trim().toLowerCase();
-        window.searchKeyword = kw;
-        
         if (!kw || !currentChat) {
             searchHighlightIndices.clear();
             activeSearchIndexValue = -1;
             searchMatches = [];
             currentMatchPos = -1;
-            searchModal.classList.add('hidden');
+            searchResultList.innerHTML = '';
             searchNav.classList.add('hidden');
+            searchTotalHits.textContent = '0';
+            if (searchQuickCount) searchQuickCount.textContent = '';
             vScroll.updateVisibleItems(true);
             return;
         }
@@ -158,13 +256,16 @@ kwSearchNode.addEventListener('input', (e) => {
         }
         
         searchHighlightIndices = new Set(searchMatches);
-        searchTotalHits.textContent = searchMatches.length; 
+        searchTotalHits.textContent = searchMatches.length;
+        if (searchQuickCount) searchQuickCount.textContent = `${searchMatches.length}件`;
+        searchTotalHits.parentElement.style.display = ''; // Restore title
         
         if (searchMatches.length === 0) {
             searchResultList.innerHTML = '<div style="padding:20px;text-align:center;">見つかりませんでした</div>';
         } else {
-            // V7: Removed search size limit constraint! Renders all nodes inside fragment synchronously matching request.
-            for (let j = 0; j < searchMatches.length; j++) {
+            // パフォーマンスのためDOM書き出しは最新150件に制限
+            const renderLimit = Math.min(searchMatches.length, 150);
+            for (let j = 0; j < renderLimit; j++) {
                 const idx = searchMatches[j];
                 const msg = currentChat.messages[idx];
                 
@@ -199,8 +300,15 @@ kwSearchNode.addEventListener('input', (e) => {
                 fragment.appendChild(div);
             }
             searchResultList.appendChild(fragment);
+            if (searchMatches.length > 150) {
+                const moreInfo = document.createElement('div');
+                moreInfo.style = 'padding: 15px; text-align: center; color: var(--text-muted); font-size: 13px;';
+                moreInfo.textContent = `他 ${searchMatches.length - 150} 件 (表示上限のため省略)`;
+                searchResultList.appendChild(moreInfo);
+            }
         }
         
+        searchModal.querySelector('.modal-content').classList.add('fullscreen');
         searchModal.classList.remove('hidden');
     }, 400); 
 });

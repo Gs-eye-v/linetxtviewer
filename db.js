@@ -1,5 +1,5 @@
 const DB_NAME = "LineChatManager";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "chats";
 
 class LineChatDB {
@@ -12,6 +12,11 @@ class LineChatDB {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+                }
+                // V11: Add index for title-based lookup (for merging)
+                const store = e.currentTarget.transaction.objectStore(STORE_NAME);
+                if (!store.indexNames.contains("title")) {
+                    store.createIndex("title", "title", { unique: false });
                 }
             };
         });
@@ -58,6 +63,18 @@ class LineChatDB {
             const request = store.get(id);
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject("Fetch failed");
+        });
+    }
+
+    static async getChatByTitle(title) {
+        const db = await this.init();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], "readonly");
+            const store = transaction.objectStore(STORE_NAME);
+            const index = store.index("title");
+            const request = index.get(title);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject("Fetch by title failed");
         });
     }
 
