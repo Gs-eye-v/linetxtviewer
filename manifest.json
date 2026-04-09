@@ -1,15 +1,15 @@
 {
-  "name": "LINE Multi-Chat Manager",
-  "short_name": "LINE Viewer",
+  "name": "Ark-ive",
+  "short_name": "Ark-ive",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f0f0f0",
   "theme_color": "#7494c0",
   "icons": [
     {
-      "src": "./icon.svg",
+      "src": "./icon.jpg",
       "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'line-viewer-v6';
+const CACHE_NAME = 'ark-ive-v3';
 const ASSETS = [
     './',
     './index.html',
@@ -9,7 +9,7 @@ const ASSETS = [
     './search.js',
     './app.js',
     './manifest.json',
-    './icon.svg'
+    './icon.jpg'
 ];
 
 self.addEventListener('install', (e) => {
