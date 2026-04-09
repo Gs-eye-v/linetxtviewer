@@ -32,12 +32,45 @@ let currentCalYear = new Date().getFullYear();
 let currentCalMonth = new Date().getMonth();
 let validDatesMap = {}; 
 
+const searchSortBtn = document.getElementById('search-sort-btn');
+const searchDateStart = document.getElementById('search-date-start');
+const searchDateEnd = document.getElementById('search-date-end');
+
+function triggerSearch() {
+    kwSearchNode.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+if (searchSortBtn) {
+    searchSortBtn.addEventListener('click', () => {
+        const currentSort = searchSortBtn.getAttribute('data-sort');
+        if (currentSort === 'desc') {
+            searchSortBtn.setAttribute('data-sort', 'asc');
+            searchSortBtn.textContent = '古い順';
+        } else {
+            searchSortBtn.setAttribute('data-sort', 'desc');
+            searchSortBtn.textContent = '新しい順';
+        }
+        triggerSearch();
+    });
+}
+
+if (searchDateStart) searchDateStart.addEventListener('change', triggerSearch);
+if (searchDateEnd) searchDateEnd.addEventListener('change', triggerSearch);
+
 document.addEventListener('chatOpened', () => {
     kwSearchNode.value = '';
     window.searchKeyword = '';
     searchModal.classList.add('hidden');
     searchNav.classList.add('hidden');
     dateModal.classList.add('hidden');
+    
+    // 全ての検索内部ステートを初期化（状態汚染の防止）
+    searchMatches = [];
+    currentMatchPos = -1;
+    searchHighlightIndices.clear();
+    activeSearchIndexValue = -1;
+    searchResultList.innerHTML = '';
+    
     if (searchToggleBtn) searchToggleBtn.style.color = '';
     if (searchQuickCount) searchQuickCount.textContent = '';
 });
@@ -54,19 +87,20 @@ dateBtn.addEventListener('click', () => {
     
     currentChat.messages.forEach((msg, idx) => {
         if (msg.date) {
-            const match = msg.date.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
-            if (match) {
-                const y = parseInt(match[1]);
-                const m = parseInt(match[2]);
-                const d = parseInt(match[3]);
-                const key = `${y}-${m}-${d}`;
-                if (validDatesMap[key] === undefined) {
-                    validDatesMap[key] = { index: idx, count: 0 };
-                    lastDate = { y, m: m - 1, d };
-                }
-                if (msg.type === 'msg') {
-                    validDatesMap[key].count++;
-                }
+            const dKey = msg.date.replace(/\//g, '-');
+            const parts = dKey.split('-');
+            const y = parseInt(parts[0]);
+            const m = parseInt(parts[1]);
+            const d = parseInt(parts[2]);
+            const key = `${y}-${m}-${d}`;
+
+            if (validDatesMap[key] === undefined) {
+                // 初回（その日の先頭）のインデックスのみ記録
+                validDatesMap[key] = { index: idx, count: 0 };
+                lastDate = { y, m: m - 1, d };
+            }
+            if (msg.type === 'msg') {
+                validDatesMap[key].count++;
             }
         }
     });
@@ -89,6 +123,10 @@ function renderCalendar() {
     calMonthLabel.textContent = `${currentCalYear}年 ${currentCalMonth + 1}月`;
     calMonthLabel.style.cursor = 'pointer';
     
+    // カレンダー表示時はヘッダーボタンを表示
+    document.getElementById('cal-prev-btn').classList.remove('hidden');
+    document.getElementById('cal-next-btn').classList.remove('hidden');
+    
     const days = ['日','月','火','水','木','金','土'];
     days.forEach(d => {
         const div = document.createElement('div');
@@ -100,6 +138,9 @@ function renderCalendar() {
     const firstDay = new Date(currentCalYear, currentCalMonth, 1).getDay();
     const daysInMonth = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
     
+    // 月間合計の算出
+    let monthTotal = 0;
+
     for (let i = 0; i < firstDay; i++) {
         const blank = document.createElement('div');
         blank.className = 'cal-cell';
@@ -117,7 +158,9 @@ function renderCalendar() {
         if (data !== undefined) {
             cell.classList.add('cal-day_valid');
             if (data.count > 0) {
-                cell.innerHTML += `<div class="cal-activity-badge" style="background:#00B900; width:6px; height:6px; border-radius:50%; padding:0; margin-top:5px; color:transparent; font-size:0;"></div>`;
+                monthTotal += data.count;
+                // ドットではなく数字のバッジを表示
+                cell.innerHTML += `<div class="cal-activity-badge">${data.count}</div>`;
             }
             cell.onclick = () => {
                 dateModal.classList.add('hidden');
@@ -128,10 +171,40 @@ function renderCalendar() {
         }
         calGrid.appendChild(cell);
     }
+    
+    // 月間合計をヘッダーに表示
+    const totalCountNode = document.getElementById('cal-total-count');
+    if (totalCountNode) totalCountNode.textContent = `月合計: ${monthTotal.toLocaleString()}件`;
 }
 
 calMonthLabel.addEventListener('click', () => {
-    // Generate month list based on validDatesMap
+    const monthListView = document.getElementById('month-list-view');
+    const calendarHeaderMain = document.getElementById('calendar-header-main');
+    const calGrid = document.getElementById('calendar-grid');
+    const calPrev = document.getElementById('cal-prev-btn');
+    const calNext = document.getElementById('cal-next-btn');
+
+    if (!monthListView.classList.contains('hidden')) {
+        monthListView.classList.remove('full-screen');
+        monthListView.classList.add('hidden');
+        calGrid.classList.remove('hidden');
+        calGrid.style.display = 'grid';
+        calPrev.classList.remove('hidden');
+        calNext.classList.remove('hidden');
+        calendarHeaderMain.style.visibility = 'visible';
+        return;
+    }
+    
+    monthListView.classList.add('full-screen');
+    monthListView.classList.remove('hidden');
+    calGrid.classList.add('hidden');
+    calGrid.style.display = 'none';
+    
+    // 年月一覧表示時はヘッダーボタンとメインヘッダーを隠して全画面化
+    calPrev.classList.add('hidden');
+    calNext.classList.add('hidden');
+    calendarHeaderMain.style.visibility = 'hidden';
+    
     const monthCounts = {};
     for (const key in validDatesMap) {
         const parts = key.split('-');
@@ -146,7 +219,7 @@ calMonthLabel.addEventListener('click', () => {
         return (bP[0]*12 + bP[1]) - (aP[0]*12 + aP[1]);
     });
     
-    searchResultList.innerHTML = `<div style="padding:15px; font-weight:bold; border-bottom:1px solid var(--border-color); background:var(--surface-color); position:sticky; top:0;">カレンダー年月を選択</div>`;
+    monthListView.innerHTML = '';
     sortedMonths.forEach(mKey => {
         const parts = mKey.split('-');
         const y = parseInt(parts[0]);
@@ -160,14 +233,20 @@ calMonthLabel.addEventListener('click', () => {
         div.onclick = () => {
             currentCalYear = y;
             currentCalMonth = m - 1;
+            
+            monthListView.classList.remove('full-screen');
+            monthListView.classList.add('hidden');
+            calGrid.classList.remove('hidden');
+            calGrid.style.display = 'grid';
+            
+            document.getElementById('cal-prev-btn').classList.remove('hidden');
+            document.getElementById('cal-next-btn').classList.remove('hidden');
+            document.getElementById('calendar-header-main').style.visibility = 'visible';
+            
             renderCalendar();
-            searchModal.classList.add('hidden');
         };
-        searchResultList.appendChild(div);
+        monthListView.appendChild(div);
     });
-    searchModal.querySelector('.modal-content').classList.remove('fullscreen');
-    searchTotalHits.parentElement.style.display = 'none'; // hide title in generic modal use
-    searchModal.classList.remove('hidden');
 });
 
 calPrevBtn.addEventListener('click', () => {
@@ -248,12 +327,48 @@ kwSearchNode.addEventListener('input', (e) => {
         searchResultList.innerHTML = '';
         const fragment = document.createDocumentFragment();
         
+        const sortMode = document.getElementById('search-sort-btn') ? document.getElementById('search-sort-btn').getAttribute('data-sort') : 'desc';
+        const dStartInput = document.getElementById('search-date-start');
+        const dEndInput = document.getElementById('search-date-end');
+        const dStart = dStartInput && dStartInput.value ? new Date(dStartInput.value + 'T00:00:00').getTime() : 0;
+        const dEnd = dEndInput && dEndInput.value ? new Date(dEndInput.value + 'T23:59:59').getTime() : Infinity;
+        
+        const tokens = kw.split(/\s+/).filter(t => t.length > 0);
+        const includeTokens = tokens.filter(t => !t.startsWith('-'));
+        const excludeTokens = tokens.filter(t => t.startsWith('-')).map(t => t.substring(1));
+        
         for (let i = 0; i < currentChat.messages.length; i++) {
             const msg = currentChat.messages[i];
-            if (msg.type === 'msg' && msg.text.toLowerCase().includes(kw)) {
-                searchMatches.push(i);
+            if (msg.type !== 'msg') continue;
+
+            // 「メッセージの送信を取り消しました」を除外
+            if (msg.text.includes("メッセージの送信を取り消しました")) continue;
+            
+            let ts = msg._timestamp;
+            if (!ts && msg.date) {
+                ts = new Date(msg.date.replace(/\//g,'-') + 'T00:00:00').getTime();
             }
+            if (ts && (ts < dStart || ts > dEnd)) continue;
+            
+            const textLower = msg.text.toLowerCase();
+            
+            // AND検索
+            const matchesAllInclude = includeTokens.every(t => textLower.includes(t));
+            if (!matchesAllInclude) continue;
+            
+            // NOT検索
+            const matchesAnyExclude = excludeTokens.length > 0 && excludeTokens.some(t => t !== "" && textLower.includes(t));
+            if (matchesAnyExclude) continue;
+            
+            searchMatches.push(i);
         }
+        
+        // 正確なタイムスタンプによるソート
+        searchMatches.sort((a, b) => {
+            const tsA = currentChat.messages[a]._timestamp || 0;
+            const tsB = currentChat.messages[b]._timestamp || 0;
+            return sortMode === 'desc' ? tsB - tsA : tsA - tsB;
+        });
         
         searchHighlightIndices = new Set(searchMatches);
         searchTotalHits.textContent = searchMatches.length;

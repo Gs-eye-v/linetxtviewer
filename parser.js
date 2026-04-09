@@ -98,7 +98,7 @@ function parseInstagramJson(text) {
         const dateStr = `${y}/${mo}/${da}`;
         
         if (dateStr !== lastDate) {
-            messages.push({ type: 'date', text: dateStr, date: dateStr, _timestamp: d.setHours(0,0,0,0) });
+            messages.push({ type: 'date', text: dateStr, date: dateStr, _timestamp: getSafeTimestamp(dateStr, "00:00") });
             lastDate = dateStr;
         }
         
@@ -141,21 +141,26 @@ function parseInstagramHtml(text) {
             const timeRaw = timeEl.textContent.trim(); 
             // example: "Sep 1, 2023, 10:00 AM" or localized
             
-            const d = new Date(timeRaw);
             let dateStr = "";
             let timeStr = "";
             let timestamp = 0;
+            
+            // Try to parse IG HTML time (localized string)
+            const d = new Date(timeRaw);
             if (!isNaN(d.getTime())) {
                 const y = d.getFullYear();
                 const mo = String(d.getMonth() + 1).padStart(2, '0');
                 const da = String(d.getDate()).padStart(2, '0');
                 dateStr = `${y}/${mo}/${da}`;
-                timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                timestamp = d.getTime();
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mm = String(d.getMinutes()).padStart(2, '0');
+                timeStr = `${hh}:${mm}`;
+                timestamp = getSafeTimestamp(dateStr, timeStr);
             }
 
             if (dateStr && dateStr !== lastDate) {
-                messages.push({ type: 'date', text: dateStr, date: dateStr, _timestamp: d.setHours(0,0,0,0) });
+                // Use getSafeTimestamp for date row as well to avoid NaN
+                messages.push({ type: 'date', text: dateStr, date: dateStr, _timestamp: getSafeTimestamp(dateStr, "00:00") });
                 lastDate = dateStr;
             }
 
@@ -190,7 +195,7 @@ function parseKakaoTxt(text) {
             const m = dm[2].padStart(2, '0');
             const d = dm[3].padStart(2, '0');
             lastDate = `${y}/${m}/${d}`;
-            messages.push({ type: 'date', text: lastDate, date: lastDate, _timestamp: new Date(`${y}-${m}-${d}T00:00:00`).getTime() });
+            messages.push({ type: 'date', text: lastDate, date: lastDate, _timestamp: getSafeTimestamp(lastDate, "00:00") });
             return;
         }
 
@@ -211,7 +216,7 @@ function parseKakaoTxt(text) {
                 if (isPm && h < 12) h += 12;
                 if (!isPm && h === 12) h = 0;
                 timeStr = `${String(h).padStart(2, '0')}:${m}`;
-                if (lastDate) tstamp = new Date(`${lastDate.replace(/\//g, '-')}T${timeStr}:00`).getTime();
+                if (lastDate) tstamp = getSafeTimestamp(lastDate, timeStr);
             }
             
             messages.push({
@@ -263,7 +268,7 @@ function parseLineChat(text) {
             fallbackDate = dateMatch[1]; 
             const dStr = fallbackDate.split('/').map(v => v.padStart(2, '0')).join('/'); // padding
             fallbackDate = dStr;
-            const tstamp = new Date(`${dStr.replace(/\//g, '-')}T00:00:00`).getTime();
+            const tstamp = getSafeTimestamp(dStr, "00:00");
             messages.push({ type: 'date', text: dStr, date: dStr, _timestamp: tstamp });
             currentMessage = null;
             continue;
@@ -272,10 +277,10 @@ function parseLineChat(text) {
         const msgMatch = line.match(msgRegexTab);
         if (msgMatch) {
             let tstamp = 0;
-            if (fallbackDate) tstamp = new Date(`${fallbackDate.replace(/\//g, '-')}T${msgMatch[1]}:00`).getTime();
+            if (fallbackDate) tstamp = getSafeTimestamp(fallbackDate, msgMatch[1]);
             currentMessage = {
                 type: 'msg',
-                time: msgMatch[1],
+                time: msgMatch[1].padStart(5, '0'),
                 sender: msgMatch[2].replace(/"/g, ''),
                 text: msgMatch[3],
                 date: fallbackDate || '',
@@ -288,10 +293,10 @@ function parseLineChat(text) {
         const sysMatch = line.match(sysRegexTab);
         if (sysMatch && !currentMessage && sysMatch[2] !== '') {
             let tstamp = 0;
-            if (fallbackDate) tstamp = new Date(`${fallbackDate.replace(/\//g, '-')}T${sysMatch[1]}:00`).getTime();
+            if (fallbackDate) tstamp = getSafeTimestamp(fallbackDate, sysMatch[1]);
             currentMessage = {
                 type: 'sys',
-                time: sysMatch[1],
+                time: sysMatch[1].padStart(5, '0'),
                 text: sysMatch[2],
                 date: fallbackDate || '',
                 _timestamp: tstamp
@@ -306,4 +311,20 @@ function parseLineChat(text) {
     }
 
     return { title, messages };
+}
+
+/**
+ * Safari/Brave等でISO文字列が NaN になるのを防ぐため、数値引数による日付生成を徹底する
+ */
+function getSafeTimestamp(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return 0;
+    const dParts = dateStr.split('/');
+    const tParts = timeStr.split(':');
+    const y = parseInt(dParts[0], 10);
+    const mo = parseInt(dParts[1], 10) - 1; // 月は0始まり
+    const d = parseInt(dParts[2], 10);
+    const h = parseInt(tParts[0], 10);
+    const m = parseInt(tParts[1] || '0', 10);
+    const dt = new Date(y, mo, d, h, m, 0);
+    return isNaN(dt.getTime()) ? 0 : dt.getTime();
 }

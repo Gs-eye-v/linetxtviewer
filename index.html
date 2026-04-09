@@ -25,20 +25,20 @@
                 style="color: #ff3b30; font-size: 14px; min-height: 20px; font-weight: bold; margin-bottom: 10px;"></p>
 
             <div id="keypad">
-                <button class="key-btn">1</button>
-                <button class="key-btn">2</button>
-                <button class="key-btn">3</button>
-                <button class="key-btn">4</button>
-                <button class="key-btn">5</button>
-                <button class="key-btn">6</button>
-                <button class="key-btn">7</button>
-                <button class="key-btn">8</button>
-                <button class="key-btn">9</button>
+                <button type="button" class="key-btn">1</button>
+                <button type="button" class="key-btn">2</button>
+                <button type="button" class="key-btn">3</button>
+                <button type="button" class="key-btn">4</button>
+                <button type="button" class="key-btn">5</button>
+                <button type="button" class="key-btn">6</button>
+                <button type="button" class="key-btn">7</button>
+                <button type="button" class="key-btn">8</button>
+                <button type="button" class="key-btn">9</button>
                 <button type="button" class="key-btn" id="key-del"
-                    style="background:transparent; border:none; box-shadow:none; font-size:18px;">Del</button>
+                    style="background:transparent; border:none; box-shadow:none; font-size:18px; color:#333; font-weight:bold;">Del</button>
                 <button type="button" class="key-btn">0</button>
                 <button type="submit" class="key-btn" id="key-ok"
-                    style="background:transparent; border:none; box-shadow:none; font-size:18px; color:var(--text-main); font-weight:bold;">OK</button>
+                    style="background:transparent; border:none; box-shadow:none; font-size:18px; color:#333; font-weight:bold;">OK</button>
             </div>
         </form>
     </div>
@@ -115,16 +115,20 @@
     <div id="date-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>日付ジャンプ</h3>
+                <h3 style="display:none;">日付ジャンプ</h3>
                 <button id="close-date-modal" class="close-btn">×</button>
             </div>
-            <div class="calendar-container">
-                <div class="calendar-header">
+            <div id="calendar-container" class="calendar-container">
+                <div id="calendar-header-main" class="calendar-header">
                     <button id="cal-prev-btn" class="nav-btn" style="color:#333;">◀</button>
-                    <span id="cal-month-label" style="font-weight:bold; font-size:16px;"></span>
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        <span id="cal-month-label" style="font-weight:bold; font-size:16px;"></span>
+                        <span id="cal-total-count" style="font-size:11px; color:var(--text-muted); margin-top:2px;"></span>
+                    </div>
                     <button id="cal-next-btn" class="nav-btn" style="color:#333;">▶</button>
                 </div>
                 <div id="calendar-grid" class="calendar-grid"></div>
+                <div id="month-list-view" class="modal-list hidden"></div>
             </div>
         </div>
     </div>
@@ -140,6 +144,14 @@
                 <div id="search-input-wrapper" style="position: relative; width: 100%;">
                     <input type="text" id="keyword-search" placeholder="キーワード検索..." style="padding: 12px 15px; border-radius: 20px; border: 1px solid var(--border-color); width: 100%; font-size: 16px; background: var(--bg-color); color: var(--text-main); box-sizing: border-box; outline: none;">
                     <span id="search-quick-count" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text-muted);"></span>
+                </div>
+                <div id="search-config" style="display:flex; justify-content:space-between; align-items:center; font-size:14px; gap:10px;">
+                    <button id="search-sort-btn" style="padding:8px; background:var(--surface-color); border:1px solid var(--border-color); border-radius:15px; color:var(--text-main); cursor:pointer; flex: 1; min-width: 80px;" data-sort="desc">新しい順</button>
+                    <div style="display:flex; align-items:center; gap:5px; flex: 2; padding: 5px; border:1px solid var(--border-color); border-radius:15px; background:var(--surface-color);">
+                        <input type="date" id="search-date-start" style="border:none; padding:3px; font-size:12px; background:transparent; color:var(--text-main); flex:1; width:100%;">
+                        <span style="color:var(--text-muted); font-size:10px;">〜</span>
+                        <input type="date" id="search-date-end" style="border:none; padding:3px; font-size:12px; background:transparent; color:var(--text-main); flex:1; width:100%;">
+                    </div>
                 </div>
             </div>
             <div id="search-result-list" class="modal-list" style="flex: 1; overflow-y: auto;"></div>
@@ -163,6 +175,7 @@
                         <option value="light">ライトモード</option>
                         <option value="dark">ダークモード</option>
                         <option value="line">LINE風</option>
+                        <option value="pop">ポップ風</option>
                     </select>
                 </label>
                 <label
@@ -241,6 +254,16 @@
                     <input type="text" id="room-settings-title" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); font-size:14px;" box-sizing:border-box;>
                 </label>
                 
+                <div style="margin-bottom:15px; font-size:14px; color:var(--text-muted);">
+                    元ファイル: <span id="room-settings-original-file" style="font-weight:bold; color:var(--text-main);">未設定</span>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <button id="room-settings-add-file-btn" style="width:100%; padding:10px; background:var(--surface-color); color:var(--primary-color); border:1px solid var(--border-color); border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">
+                        ＋ 追加のトーク履歴を読み込む
+                    </button>
+                    <input type="file" id="room-settings-file-input" accept=".txt" style="display: none;" multiple>
+                </div>
+                
                 <div style="margin-bottom:15px;">
                     <span style="font-weight:bold; font-size:14px; color:var(--text-muted); display:block; margin-bottom:5px;">参加メンバー設定 (名前・アイコン)</span>
                     <div id="room-settings-members" style="border:1px solid var(--border-color); border-radius:8px; padding:10px; background:var(--surface-color);">
@@ -280,9 +303,13 @@
                 <button id="close-merge-mapping-modal" class="close-btn">×</button>
             </div>
             <div style="padding: 15px; overflow-y: auto;">
-                <p style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">追加するファイル内の発言者名をどう扱うか指定してください。既存の名前を選択すると同一人物として統合されます。</p>
+                <label style="display:block; margin-bottom:15px;">
+                    <span style="font-weight:bold; font-size:14px; color:var(--text-muted); display:block; margin-bottom:5px;">インポートするトークルーム名</span>
+                    <input type="text" id="import-mapping-title" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); font-size:14px;" box-sizing:border-box;>
+                </label>
+                <p style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">追加するファイル内の発言者名をどう扱うか指定してください。既存にある場合は選択できます。テキスト入力で任意の名前に変更することも可能です（予定）。</p>
                 <div id="merge-mapping-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-                <button id="merge-mapping-apply-btn" style="width:100%; padding:12px; background:#00B900; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:20px;">統合してマージ実行</button>
+                <button id="merge-mapping-apply-btn" style="width:100%; padding:12px; background:#00B900; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:20px;">この設定で読み込む</button>
             </div>
         </div>
     </div>

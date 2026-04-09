@@ -132,19 +132,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (savedHash) {
         lockScreen.style.display = 'flex';
         
+        let passcodeFailCount = 0;
+        let passcodeLockEndTime = 0;
+        let lockInterval = null;
+        
+        const updateLockDisplay = () => {
+            if (Date.now() < passcodeLockEndTime) {
+                const remain = Math.ceil((passcodeLockEndTime - Date.now()) / 1000);
+                passcodeError.textContent = `ロック中です。あと ${remain} 秒`;
+                return true;
+            } else {
+                if (lockInterval) {
+                    clearInterval(lockInterval);
+                    lockInterval = null;
+                    passcodeError.textContent = '再度入力してください';
+                }
+                return false;
+            }
+        };
+
         const tryUnlock = async () => {
+            if (updateLockDisplay()) return;
             if (passcodeInput.value.length === 0) return;
             passcodeError.textContent = '';
+            
             try {
                 const currentHash = await hashStr(passcodeInput.value);
                 if (currentHash === savedHash) {
                     lockScreen.style.display = 'none';
                     mainApp.style.display = 'flex';
+                    passcodeFailCount = 0;
                     initApp();
                 } else {
-                    passcodeError.textContent = 'パスワードが違います';
+                    passcodeFailCount++;
                     passcodeInput.value = '';
                     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    
+                    if (passcodeFailCount >= 3) {
+                        const lockSeconds = 10 * Math.pow(2, passcodeFailCount - 3);
+                        passcodeLockEndTime = Date.now() + lockSeconds * 1000;
+                        lockInterval = setInterval(updateLockDisplay, 1000);
+                        updateLockDisplay();
+                    } else {
+                        passcodeError.textContent = `パスワードが違います（${passcodeFailCount}回失敗）`;
+                    }
                 }
             } catch(e) {
                 console.error('Unlock error:', e);
@@ -159,6 +190,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.querySelectorAll('.key-btn').forEach(btn => {
             btn.addEventListener('pointerdown', async (e) => {
+                if (Date.now() < passcodeLockEndTime) return e.preventDefault();
+                
                 if (btn.type === 'submit') return; // Handled by form submission
                 e.preventDefault();
                 const val = btn.textContent;
@@ -352,41 +385,7 @@ vScroll.setRenderer((item, index) => {
                         ${timeHtml}
                     </div>
                 </div>
-            </div>
         `;
-        
-        const bubbleEl = el.querySelector('.bubble');
-        if (bubbleEl && item.date) {
-            const clearTimer = () => { clearTimeout(tooltipTimer); hideTooltip(); };
-            
-            const startPress = (e) => {
-                if (e.target.tagName && e.target.tagName.toLowerCase() === 'a') return;
-                
-                clearTimeout(tooltipTimer);
-                let x, y;
-                if (e.touches && e.touches.length > 0) {
-                    x = e.touches[0].clientX; 
-                    y = e.touches[0].clientY;
-                } else {
-                    const rect = bubbleEl.getBoundingClientRect();
-                    x = rect.left + rect.width / 2; 
-                    y = rect.top;
-                }
-                
-                tooltipTimer = setTimeout(() => {
-                    showTooltip(`${item.date} ${item.time}`, x, y);
-                }, 500); 
-            };
-            
-            bubbleEl.addEventListener('touchstart', startPress, {passive: true});
-            bubbleEl.addEventListener('touchend', clearTimer);
-            bubbleEl.addEventListener('touchmove', clearTimer);
-            bubbleEl.addEventListener('touchcancel', clearTimer);
-            
-            bubbleEl.addEventListener('mousedown', startPress);
-            bubbleEl.addEventListener('mouseup', clearTimer);
-            bubbleEl.addEventListener('mouseleave', clearTimer);
-        }
     }
     return el;
 });
@@ -475,9 +474,9 @@ async function loadChatList() {
         
         div.innerHTML = `
             <div class="chat-info">
-                <div class="chat-icon" style="${iconStyle}">${iconTextNode}</div>
+                <div class="chat-icon list-icon-edit" style="${iconStyle} cursor:pointer;" title="アイコンを変更">${iconTextNode}</div>
                 <div class="chat-desc">
-                    <h3>${chat.title}</h3>
+                    <h3 class="list-title-edit" style="cursor:pointer;" title="名前を変更">${chat.title}</h3>
                     <p>${chat.lastMessageText || 'メッセージなし'}</p>
                 </div>
             </div>
@@ -491,46 +490,110 @@ async function loadChatList() {
         `;
         
         wrapper.appendChild(div);
+        
+        const titleEl = div.querySelector('.list-title-edit');
+        if (titleEl) {
+            titleEl.onclick = async (e) => {
+                e.stopPropagation();
+                const newName = prompt('トークルーム名を変更:', chat.title);
+                if (newName && newName.trim() !== '') {
+                    chat.title = newName.trim();
+                    await LineChatDB.updateChat(chat);
+                    await loadChatList();
+                    showToast('名前を変更しました');
+                }
+            };
+        }
+        
+        const iconEl = div.querySelector('.list-icon-edit');
+        if (iconEl) {
+            iconEl.onclick = (e) => {
+                e.stopPropagation();
+                const tempInput = document.createElement('input');
+                tempInput.type = 'file';
+                tempInput.accept = 'image/*';
+                tempInput.onchange = async (ev) => {
+                    const file = ev.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = async () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_SIZE = 120;
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > height) {
+                                if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                            } else {
+                                if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                            }
+                            canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            chat.icon = canvas.toDataURL('image/jpeg', 0.8);
+                            await LineChatDB.updateChat(chat);
+                            await loadChatList();
+                            showToast('アイコンを変更しました');
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+                tempInput.click();
+            };
+        }
+
         chatListContainer.appendChild(wrapper);
     });
 }
 
-function promptMergeMapping(newSenders, existingSenders) {
+function promptMergeMapping(newSenders, existingSenders, defaultTitle) {
     return new Promise(resolve => {
-        if (newSenders.length === 0) return resolve({});
         const modal = document.getElementById('merge-mapping-modal');
         const listDiv = document.getElementById('merge-mapping-list');
         const applyBtn = document.getElementById('merge-mapping-apply-btn');
         const closeBtn = document.getElementById('close-merge-mapping-modal');
+        const titleInput = document.getElementById('import-mapping-title');
         
+        titleInput.value = defaultTitle;
         listDiv.innerHTML = '';
-        const selectNodes = [];
         
-        newSenders.forEach(ns => {
-            const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.alignItems = 'center';
-            row.style.justifyContent = 'space-between';
-            row.style.background = 'var(--surface-color)';
-            row.style.padding = '10px';
-            row.style.borderRadius = '5px';
-            row.style.border = '1px solid var(--border-color)';
-            
-            let optionsHtml = `<option value="">-- 追加する名前: ${ns} のまま --</option>`;
-            existingSenders.forEach(es => {
-                optionsHtml += `<option value="${es}" ${ns === es ? 'selected' : ''}>既存: ${es}</option>`;
+        // DataList for autocomplete
+        const dsId = 'existing-senders-list';
+        let ds = document.getElementById(dsId);
+        if(!ds) {
+            ds = document.createElement('datalist');
+            ds.id = dsId;
+            document.body.appendChild(ds);
+        }
+        ds.innerHTML = existingSenders.map(es => `<option value="${es}"></option>`).join('');
+        
+        const inputNodes = [];
+        
+        if (newSenders.length === 0) {
+            listDiv.innerHTML = '<p style="font-size:14px; text-align:center;">新しい発言者は見つかりませんでした。</p>';
+        } else {
+            newSenders.forEach(ns => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+                row.style.justifyContent = 'space-between';
+                row.style.background = 'var(--surface-color)';
+                row.style.padding = '10px';
+                row.style.borderRadius = '5px';
+                row.style.border = '1px solid var(--border-color)';
+                
+                row.innerHTML = `
+                    <span style="font-weight:bold; font-size:14px; width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ns}</span>
+                    <span style="font-size:14px; color:var(--text-muted);">→</span>
+                    <input type="text" list="${dsId}" placeholder="既存の名前を選択or入力" value="${ns}" style="width:45%; padding:5px; border-radius:5px; border:1px solid var(--border-color); font-size:14px; background:var(--bg-color); color:var(--text-main);" data-new-sender="${ns.replace(/"/g, '&quot;')}">
+                `;
+                listDiv.appendChild(row);
+                inputNodes.push(row.querySelector('input'));
             });
-            
-            row.innerHTML = `
-                <span style="font-weight:bold; font-size:14px; width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ns}</span>
-                <span style="font-size:14px; color:var(--text-muted);">→</span>
-                <select style="width:45%; padding:5px; border-radius:5px; border:1px solid var(--border-color); font-size:14px; background:var(--bg-color); color:var(--text-main);" data-new-sender="${ns.replace(/"/g, '&quot;')}">
-                    ${optionsHtml}
-                </select>
-            `;
-            listDiv.appendChild(row);
-            selectNodes.push(row.querySelector('select'));
-        });
+        }
         
         const cleanup = () => {
             modal.classList.add('hidden');
@@ -540,12 +603,13 @@ function promptMergeMapping(newSenders, existingSenders) {
         const closeHandler = () => { cleanup(); resolve(null); };
         const applyHandler = () => {
             const mapping = {};
-            selectNodes.forEach(sel => {
-                const val = sel.value;
-                if (val !== "") mapping[sel.getAttribute('data-new-sender')] = val;
+            inputNodes.forEach(inp => {
+                const val = inp.value.trim();
+                const orig = inp.getAttribute('data-new-sender');
+                if (val !== "" && val !== orig) mapping[orig] = val;
             });
             cleanup();
-            resolve(mapping);
+            resolve({ title: titleInput.value.trim() || defaultTitle, mapping });
         };
         
         closeBtn.addEventListener('click', closeHandler);
@@ -578,26 +642,47 @@ async function processFiles(files, targetChat = null) {
             showToast(`${file.name}の解析に失敗したか、中身が空です`);
             continue;
         }
+        parsed.originalFilename = file.name;
         
-        const existingChat = targetChat || await LineChatDB.getChatByTitle(parsed.title);
+        let existingChat = targetChat;
+        if (!existingChat) {
+            const tempMatch = await LineChatDB.getChatByTitle(parsed.title);
+            if (tempMatch) {
+                const doMerge = confirm(`既に「${parsed.title}」という名前のトークが存在します。\n\n・「OK」ボタン：既存のトークに統合（マージ）します。\n・「キャンセル」ボタン：新規トークとして独立して追加します。`);
+                if (doMerge) existingChat = tempMatch;
+            }
+        }
+        
+        const nsSet = new Set();
+        parsed.messages.forEach(m => { if(m.type==='msg' && m.sender) nsSet.add(m.sender); });
+        
+        const esSet = new Set();
+        if (existingChat) {
+            existingChat.messages.forEach(m => { if(m.type==='msg' && m.sender) esSet.add(m.sender); });
+        }
+        
+        const mappedData = await promptMergeMapping(Array.from(nsSet), Array.from(esSet), parsed.title);
+        if (mappedData === null) {
+            showToast('追加インポートをキャンセルしました');
+            continue;
+        }
+        
+        parsed.title = mappedData.title;
+        const mapping = mappedData.mapping;
+        
+        parsed.messages.forEach(m => {
+            if(m.type==='msg' && m.sender && mapping[m.sender]) {
+                m.sender = mapping[m.sender];
+            }
+        });
+        
+        // 再度タイトルで合流先を探す（強制されたtargetChatがない場合）
+        if (!targetChat) {
+            existingChat = await LineChatDB.getChatByTitle(parsed.title);
+        }
         
         if (existingChat) {
-            const nsSet = new Set();
-            parsed.messages.forEach(m => { if(m.type==='msg' && m.sender) nsSet.add(m.sender); });
-            const esSet = new Set();
-            existingChat.messages.forEach(m => { if(m.type==='msg' && m.sender) esSet.add(m.sender); });
-            
-            const mapping = await promptMergeMapping(Array.from(nsSet), Array.from(esSet));
-            if (mapping === null) {
-                showToast('マージをキャンセルしました');
-                continue;
-            }
-            
-            parsed.messages.forEach(m => {
-                if(m.type==='msg' && m.sender && mapping[m.sender]) {
-                    m.sender = mapping[m.sender];
-                }
-            });
+            // merge data
             
             const existingSet = new Set();
             existingChat.messages.forEach(m => {
@@ -765,6 +850,11 @@ if (roomSettingsBtn) {
         if (!currentChat) return;
         
         roomSettingsTitle.value = currentChat.title;
+        const origFileSpan = document.getElementById('room-settings-original-file');
+        if (origFileSpan) {
+            origFileSpan.textContent = currentChat.originalFilename || '未設定';
+        }
+        
         tempNameMap = {};
         tempIconMap = Object.assign({}, currentChat.userIcons || {});
         tempMainIconTarget = null;
@@ -777,6 +867,19 @@ if (roomSettingsBtn) {
         
         renderRoomSettingsMembers(senders);
         roomSettingsModal.classList.remove('hidden');
+    });
+}
+
+const rsAddBtn = document.getElementById('room-settings-add-file-btn');
+const rsFileInput = document.getElementById('room-settings-file-input');
+if (rsAddBtn && rsFileInput) {
+    rsAddBtn.addEventListener('click', () => rsFileInput.click());
+    rsFileInput.addEventListener('change', async (e) => {
+        if (!currentChat) return;
+        roomSettingsModal.classList.add('hidden'); // いったん閉じる
+        await processFiles(e.target.files, currentChat);
+        e.target.value = '';
+        await openChat(currentChat.id); // 更新反映
     });
 }
 if (closeRoomSettingsModal) closeRoomSettingsModal.addEventListener('click', () => roomSettingsModal.classList.add('hidden'));
@@ -821,6 +924,43 @@ if (roomSettingsApplyBtn) {
         vScroll.setItems(currentChat.messages);
         showToast('設定を適用しました');
         roomSettingsModal.classList.add('hidden');
+    });
+}
+
+if (roomSettingsExportBtn) {
+    roomSettingsExportBtn.addEventListener('click', () => {
+        if (!currentChat || !currentChat.messages) return;
+        const filename = prompt('保存するファイル名を入力してください（拡張子不要）', currentChat.title);
+        if (!filename) return;
+        
+        // Ensure strictly chronological order for export
+        const sortedMsgs = [...currentChat.messages].sort((a, b) => (a._timestamp || 0) - (b._timestamp || 0));
+        
+        let content = '';
+        let lastDate = '';
+        sortedMsgs.forEach(m => {
+            // Check for date change to insert parser-compatible date line
+            if (m.date && m.date !== lastDate) {
+                // Ensure format: YYYY/MM/DD(Ark)
+                content += `${m.date}(Ark)\n`;
+                lastDate = m.date;
+            }
+            
+            if (m.type === 'msg') {
+                content += `${m.time}\t${m.sender}\t${m.text.replace(/\n/g, '\\n')}\n`; // safe multiline representation if needed, but here we just restore tabs
+            } else if (m.type === 'sys') {
+                content += `${m.time}\t${m.text.replace(/\n/g, '\\n')}\n`;
+            }
+        });
+        
+        const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('エクスポートが完了しました');
     });
 }
 
@@ -915,37 +1055,23 @@ backBtn.addEventListener('click', () => {
 });
 
 if (flipBtn) {
-    flipBtn.addEventListener('click', () => {
+    flipBtn.addEventListener('click', async () => {
         if (!currentChat) return;
         const sendersSet = new Set();
         currentChat.messages.forEach(m => {
             if (m.type === 'msg' && m.sender) sendersSet.add(m.sender);
         });
         const senders = Array.from(sendersSet);
+        if (senders.length === 0) return;
         
-        flipMembersList.innerHTML = '';
-        senders.forEach((s) => {
-            const div = document.createElement('div');
-            div.className = 'modal-list-item';
-            div.style.flexDirection = 'row';
-            div.style.alignItems = 'center';
-            div.style.gap = '15px';
-            div.innerHTML = `
-                <input type="radio" name="flip-target" value="${s}" style="width:20px;height:20px; cursor:pointer;" ${currentChat.myName === s ? 'checked' : ''}>
-                <span style="font-size: 16px;">${s}</span>
-            `;
-            div.onclick = async () => {
-                const radio = div.querySelector('input[type="radio"]');
-                radio.checked = true;
-                currentChat.myName = s;
-                await LineChatDB.updateChat(currentChat);
-                showToast(`自分側を ${s} に設定しました`);
-                flipSelectionModal.classList.add('hidden');
-                vScroll.updateVisibleItems(true); 
-            };
-            flipMembersList.appendChild(div);
-        });
-        flipSelectionModal.classList.remove('hidden');
+        let currentIndex = senders.indexOf(currentChat.myName);
+        let nextIndex = (currentIndex + 1) % senders.length;
+        
+        currentChat.myName = senders[nextIndex];
+        await LineChatDB.updateChat(currentChat);
+        
+        vScroll.updateVisibleItems(true); // 強制再描画
+        showToast(`自分側を ${currentChat.myName} に切り替えました`);
     });
 }
 if (closeFlipSelectionModal) {
@@ -954,42 +1080,3 @@ if (closeFlipSelectionModal) {
     });
 }
 
-if (roomSettingsExportBtn) {
-    roomSettingsExportBtn.addEventListener('click', () => {
-        if (!currentChat || currentChat.messages.length === 0) return;
-        
-        // メタデータ生成
-        const meta = {
-            rightUser: currentChat.myName || null,
-            icon: currentChat.icon || null,
-            userIcons: currentChat.userIcons || {}
-        };
-        let content = `[Ark-ive Metadata] ${JSON.stringify(meta)}\n`;
-        content += `[LINE] Ark-iveトーク履歴\n`;
-        
-        let lastDate = "";
-        currentChat.messages.forEach(m => {
-            if (m.type === 'date' || m.date !== lastDate) {
-                if (m.date && m.date !== lastDate) {
-                    content += `\n${m.date}(Ark)\n`;
-                    lastDate = m.date;
-                }
-            }
-            if (m.type === 'msg') {
-                content += `${m.time}\t${m.sender}\t${m.text}\n`;
-            } else if (m.type === 'sys') {
-                content += `${m.time}\t${m.text}\n`;
-            }
-        });
-        
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentChat.title}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        showToast('エクスポートを完了しました');
-    });
-}
