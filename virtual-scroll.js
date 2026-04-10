@@ -178,4 +178,10 @@ class VirtualScroll {
         // 強制更新
         setTimeout(() => this.updateVisibleItems(true), 10);
     }
+
+    getMiddleVisibleIndex() {
+        if (!this.items.length) return 0;
+        const middleScroll = this.scrollTop + (this.scrollContainer.clientHeight / 2);
+        return this.binarySearch(middleScroll);
+    }
 }

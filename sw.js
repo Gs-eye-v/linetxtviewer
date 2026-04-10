@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ark-ive-v3';
+const CACHE_NAME = 'ark-ive-v21-force';
 const ASSETS = [
     './',
     './index.html',

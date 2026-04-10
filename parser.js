@@ -219,13 +219,24 @@ function parseKakaoTxt(text) {
                 if (lastDate) tstamp = getSafeTimestamp(lastDate, timeStr);
             }
             
+            // V12: Call duration extraction (Kakao format can differ but usually text)
+            let callDuration = 0;
+            const callMatch = content.match(/☎ 通話時間\s*(\d+):(\d+)(?::(\d+))?/);
+            if (callMatch) {
+                const h = callMatch[3] ? parseInt(callMatch[1], 10) : 0;
+                const m = callMatch[3] ? parseInt(callMatch[2], 10) : parseInt(callMatch[1], 10);
+                const s = callMatch[3] ? parseInt(callMatch[3], 10) : parseInt(callMatch[2], 10);
+                callDuration = h * 3600 + m * 60 + s;
+            }
+
             messages.push({
                 type: 'msg',
                 time: timeStr,
                 sender: sender,
                 text: content,
                 date: lastDate,
-                _timestamp: tstamp
+                _timestamp: tstamp,
+                callDuration: callDuration
             });
             return;
         }
@@ -278,13 +289,24 @@ function parseLineChat(text) {
         if (msgMatch) {
             let tstamp = 0;
             if (fallbackDate) tstamp = getSafeTimestamp(fallbackDate, msgMatch[1]);
+            // V12: Call duration extraction
+            let callDuration = 0;
+            const callMatch = msgMatch[3].match(/☎ 通話時間\s*(\d+):(\d+)(?::(\d+))?/);
+            if (callMatch) {
+                const h = callMatch[3] ? parseInt(callMatch[1], 10) : 0;
+                const m = callMatch[3] ? parseInt(callMatch[2], 10) : parseInt(callMatch[1], 10);
+                const s = callMatch[3] ? parseInt(callMatch[3], 10) : parseInt(callMatch[2], 10);
+                callDuration = h * 3600 + m * 60 + s;
+            }
+
             currentMessage = {
                 type: 'msg',
                 time: msgMatch[1].padStart(5, '0'),
                 sender: msgMatch[2].replace(/"/g, ''),
                 text: msgMatch[3],
                 date: fallbackDate || '',
-                _timestamp: tstamp
+                _timestamp: tstamp,
+                callDuration: callDuration
             };
             messages.push(currentMessage);
             continue;
@@ -294,12 +316,23 @@ function parseLineChat(text) {
         if (sysMatch && !currentMessage && sysMatch[2] !== '') {
             let tstamp = 0;
             if (fallbackDate) tstamp = getSafeTimestamp(fallbackDate, sysMatch[1]);
+            // V12: Call duration extraction for sys messages (sometimes duration is here)
+            let callDuration = 0;
+            const callMatch = sysMatch[2].match(/☎ 通話時間\s*(\d+):(\d+)(?::(\d+))?/);
+            if (callMatch) {
+                const h = callMatch[3] ? parseInt(callMatch[1], 10) : 0;
+                const m = callMatch[3] ? parseInt(callMatch[2], 10) : parseInt(callMatch[1], 10);
+                const s = callMatch[3] ? parseInt(callMatch[3], 10) : parseInt(callMatch[2], 10);
+                callDuration = h * 3600 + m * 60 + s;
+            }
+
             currentMessage = {
                 type: 'sys',
                 time: sysMatch[1].padStart(5, '0'),
                 text: sysMatch[2],
                 date: fallbackDate || '',
-                _timestamp: tstamp
+                _timestamp: tstamp,
+                callDuration: callDuration
             };
             messages.push(currentMessage);
             continue;

@@ -53,14 +53,14 @@ const ArkiveCrypto = {
         combined.set(iv);
         combined.set(new Uint8Array(ciphertext), iv.length);
         
-        return btoa(String.fromCharCode(...combined));
+        return this.uint8ArrayToBase64(combined);
     },
 
     /**
      * Decrypt a Base64 string
      */
     async decrypt(combinedBase64, key) {
-        const combined = new Uint8Array(atob(combinedBase64).split("").map(c => c.charCodeAt(0)));
+        const combined = this.base64ToUint8Array(combinedBase64);
         const iv = combined.slice(0, this.IV_LEN);
         const ciphertext = combined.slice(this.IV_LEN);
         
@@ -90,13 +90,36 @@ const ArkiveCrypto = {
      * Convert salt to Base64 for storage
      */
     saltToBase64(salt) {
-        return btoa(String.fromCharCode(...salt));
+        return this.uint8ArrayToBase64(salt);
     },
 
     /**
      * Convert Base64 back to salt
      */
     base64ToSalt(base64) {
-        return new Uint8Array(atob(base64).split("").map(c => c.charCodeAt(0)));
+        return this.base64ToUint8Array(base64);
+    },
+
+    /**
+     * [V18 Helper] Safe Uint8Array to Base64 (avoid stack overflow)
+     */
+    uint8ArrayToBase64(uint8) {
+        let binary = '';
+        for (let i = 0; i < uint8.byteLength; i++) {
+            binary += String.fromCharCode(uint8[i]);
+        }
+        return btoa(binary);
+    },
+
+    /**
+     * [V18 Helper] Safe Base64 to Uint8Array (avoid large array map overhead)
+     */
+    base64ToUint8Array(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
     }
 };
