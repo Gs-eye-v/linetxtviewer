@@ -1,4 +1,32 @@
 window.searchKeyword = '';
+
+/**
+ * V25 Shared Search Logic
+ */
+window.matchMessage = function(msg, includeTokens, excludeTokens, options = {}) {
+    if (msg.type !== 'msg') return false;
+    if (msg.text.includes("メッセージの送信を取り消しました")) return false;
+    
+    const { dStart = 0, dEnd = Infinity, memberFilter = null } = options;
+
+    // Member Filter
+    if (memberFilter && memberFilter.size > 0 && !memberFilter.has(msg.sender)) return false;
+    
+    // Date Filter
+    let ts = msg._timestamp;
+    if (!ts && msg.date) ts = new Date(msg.date.replace(/\//g,'-') + 'T00:00:00').getTime();
+    if (ts && (ts < dStart || ts > dEnd)) return false;
+    
+    const textLower = msg.text.toLowerCase();
+    // Include
+    const matchesAllInclude = includeTokens.every(t => textLower.includes(t));
+    if (!matchesAllInclude) return false;
+    // Exclude
+    const matchesAnyExclude = excludeTokens.length > 0 && excludeTokens.some(t => t !== "" && textLower.includes(t));
+    if (matchesAnyExclude) return false;
+
+    return true;
+};
 const kwSearchNode = document.getElementById('keyword-search');
 const searchModal = document.getElementById('search-modal');
 const closeSearchModalBtn = document.getElementById('close-search-modal');
@@ -207,6 +235,15 @@ function renderCalendar() {
         }
         calGrid.appendChild(cell);
     }
+
+    // V36: Constant height (always 6 weeks = 42 cells)
+    const currentCells = firstDay + daysInMonth;
+    const remainingCells = 42 - currentCells;
+    for (let i = 0; i < remainingCells; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-cell cal-day_invalid';
+        calGrid.appendChild(blank);
+    }
     
     const totalCountNode = document.getElementById('cal-total-count');
     if (totalCountNode) {
@@ -414,23 +451,15 @@ kwSearchNode.addEventListener('input', (e) => {
         
         for (let i = 0; i < currentChat.messages.length; i++) {
             const msg = currentChat.messages[i];
-            if (msg.type !== 'msg') continue;
-            if (msg.text.includes("メッセージの送信を取り消しました")) continue;
+            const filterRes = matchMessage(msg, includeTokens, excludeTokens, {
+                dStart, 
+                dEnd, 
+                memberFilter: searchMemberFilter
+            });
             
-            // Member Filter
-            if (searchMemberFilter.size > 0 && !searchMemberFilter.has(msg.sender)) continue;
-            
-            let ts = msg._timestamp;
-            if (!ts && msg.date) ts = new Date(msg.date.replace(/\//g,'-') + 'T00:00:00').getTime();
-            if (ts && (ts < dStart || ts > dEnd)) continue;
-            
-            const textLower = msg.text.toLowerCase();
-            const matchesAllInclude = includeTokens.every(t => textLower.includes(t));
-            if (!matchesAllInclude) continue;
-            const matchesAnyExclude = excludeTokens.length > 0 && excludeTokens.some(t => t !== "" && textLower.includes(t));
-            if (matchesAnyExclude) continue;
-            
-            searchMatches.push(i);
+            if (filterRes) {
+                searchMatches.push(i);
+            }
         }
         
         searchMatches.sort((a, b) => {

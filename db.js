@@ -114,7 +114,8 @@ class LineChatDB {
     }
 
     static async _restoreChat(chat) {
-        if (chat && chat.data) {
+        if (!chat) return null;
+        if (chat.data) {
             let decrypted = await this._maybeDecrypt(chat.data);
             
             // V20: Auto-detect JSON string for backward compatibility or cases where maybeDecrypt returned raw string
@@ -162,12 +163,48 @@ class LineChatDB {
         return new Promise((resolve, reject) => {
             const transaction = db.transaction([STORE_NAME], "readonly");
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(id);
-            request.onsuccess = async () => {
-                const chat = await this._restoreChat(request.result);
-                resolve(chat);
+            
+            // Step 1: Try exact match (any type as passed)
+            const req1 = store.get(id);
+            req1.onsuccess = async () => {
+                if (req1.result) {
+                    return resolve(await this._restoreChat(req1.result));
+                }
+                
+                // Step 2: Try string fallback
+                const req2 = store.get(String(id));
+                req2.onsuccess = async () => {
+                    if (req2.result) {
+                        return resolve(await this._restoreChat(req2.result));
+                    }
+                    
+                    // Step 3: Try numeric fallback
+                    const nId = Number(id);
+                    if (!isNaN(nId)) {
+                        const req3 = store.get(nId);
+                        req3.onsuccess = async () => {
+                            if (req3.result) {
+                                return resolve(await this._restoreChat(req3.result));
+                            }
+                            
+                            // Step 4: Final resort - Scan all with loose comparison
+                            this.getAllChats().then(all => {
+                                const chatFound = all.find(c => String(c.id) === String(id));
+                                resolve(chatFound || null);
+                            }).catch(() => resolve(null));
+                        };
+                        req3.onerror = () => resolve(null);
+                    } else {
+                        // Scan anyway if not a number
+                        this.getAllChats().then(all => {
+                            const chatFound = all.find(c => String(c.id) === String(id));
+                            resolve(chatFound || null);
+                        }).catch(() => resolve(null));
+                    }
+                };
+                req2.onerror = () => resolve(null);
             };
-            request.onerror = () => reject("Fetch failed");
+            req1.onerror = () => reject("Fetch failed");
         });
     }
 

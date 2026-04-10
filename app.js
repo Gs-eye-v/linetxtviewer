@@ -11,6 +11,260 @@ const mainApp = document.getElementById('main-app');
 const lockScreen = document.getElementById('lock-screen');
 const passcodeInput = document.getElementById('passcode-input');
 const passcodeError = document.getElementById('passcode-error');
+window.dbReady = false;
+async function waitDBReady() {
+    while(!window.dbReady) {
+        await new Promise(r => setTimeout(r, 100));
+    }
+}
+
+let gCalDate = new Date();
+window.currentGlobalHitSenders = new Set(); 
+
+window.initGlobalCalendar = async () => {
+    const chats = await LineChatDB.getAllChats();
+    const stats = {};
+    chats.forEach(chat => {
+        chat.messages.forEach(m => {
+            if (m.date) {
+                const dateStr = m.date.replace(/\//g, '-');
+                if (!stats[dateStr]) stats[dateStr] = { count: 0, callTime: 0 };
+                if (m.type === 'msg') stats[dateStr].count++;
+                if (m.callDuration) stats[dateStr].callTime += m.callDuration;
+            }
+        });
+    });
+    const year = gCalDate.getFullYear();
+    const month = gCalDate.getMonth();
+    const monthLabel = findViewById('global-cal-month-label');
+    if (monthLabel) monthLabel.textContent = `${year}年 ${month + 1}月`;
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    
+    const grid = findViewById('global-calendar-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    ['日','月','火','水','木','金','土'].forEach(d => {
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell cal-header-cell';
+        cell.textContent = d;
+        grid.appendChild(cell);
+    });
+    for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+    const statsNode = findViewById('global-cal-stats');
+    let monthTotal = 0;
+    let monthCall = 0;
+
+    for (let d = 1; d <= lastDate; d++) {
+        const dateStr = `${year}/${String(month+1).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+        const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell';
+        cell.innerHTML = `<span>${d}</span>`;
+        const data = stats[dateKey];
+        if (data && (data.count > 0 || data.callTime > 0)) {
+            cell.classList.add('cal-day_valid');
+            if (data.count > 0) {
+                monthTotal += data.count;
+                cell.innerHTML += `<div class="cal-activity-badge">${data.count}</div>`;
+                cell.style.cursor = 'pointer';
+                cell.onclick = () => window.showGlobalDailyLogs(dateKey.replace(/-/g, '/'));
+            }
+            if (data.callTime > 0) {
+                monthCall += data.callTime;
+                cell.innerHTML += `<div style="font-size:9px; color:#5ac8fa;">☎${formatCallTime(data.callTime)}</div>`;
+            }
+        }
+        grid.appendChild(cell);
+    }
+
+    // V36: Constant height (always 6 weeks = 42 cells)
+    const currentCells = firstDay + lastDate;
+    const remainingCells = 42 - currentCells;
+    for (let i = 0; i < remainingCells; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-cell cal-day_invalid';
+        grid.appendChild(blank);
+    }
+    
+    if (statsNode) {
+        let text = `月合計: ${monthTotal.toLocaleString()}件`;
+        if (monthCall > 0) text += ` / ☎ ${formatCallTime(monthCall)}`;
+        else text += ` / ☎ 0:00`;
+        statsNode.textContent = text;
+    }
+};
+
+function setupGlobalCalNav() {
+    const prev = findViewById('global-cal-prev-btn');
+    const next = findViewById('global-cal-next-btn');
+    const monthLabel = findViewById('global-cal-month-label');
+    
+    if(prev) prev.onclick = () => {
+        gCalDate.setMonth(gCalDate.getMonth() - 1);
+        window.initGlobalCalendar();
+    };
+    if(next) next.onclick = () => {
+        gCalDate.setMonth(gCalDate.getMonth() + 1);
+        window.initGlobalCalendar();
+    };
+    if(monthLabel) monthLabel.onclick = () => window.renderGlobalMonthList();
+}
+
+window.renderGlobalMonthList = async () => {
+    const list = findViewById('global-month-list-view');
+    const grid = findViewById('global-calendar-grid');
+    const prev = findViewById('global-cal-prev-btn');
+    const next = findViewById('global-cal-next-btn');
+    if (!list) return;
+
+    if (!list.classList.contains('hidden')) {
+        window.closeGlobalMonthList();
+        return;
+    }
+
+    grid.classList.add('hidden');
+    grid.style.display = 'none';
+    prev.classList.add('hidden');
+    next.classList.add('hidden');
+    list.classList.add('full-screen');
+    list.classList.remove('hidden');
+
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '×';
+    closeBtn.style = "position:absolute; right:20px; top:20px; font-size:30px; cursor:pointer; z-index:100; color:var(--text-main); font-weight:normal;";
+    closeBtn.onclick = window.closeGlobalMonthList;
+    list.appendChild(closeBtn);
+
+    const monthStats = {};
+    const chats = await LineChatDB.getAllChats();
+    let minT = Infinity, maxT = -Infinity;
+
+    chats.forEach(chat => {
+        chat.messages.forEach(m => {
+            if (m.date && m.date.includes('/')) {
+                const parts = m.date.split('/');
+                const y = parseInt(parts[0]), m_val = parseInt(parts[1]);
+                const mKey = `${y}-${m_val}`;
+                const t = y * 12 + (m_val - 1);
+                if (t < minT) minT = t;
+                if (t > maxT) maxT = t;
+                if (!monthStats[mKey]) monthStats[mKey] = { count: 0, call: 0 };
+                if (m.type === 'msg') monthStats[mKey].count++;
+                if (m.callDuration) monthStats[mKey].call += m.callDuration;
+            }
+        });
+    });
+
+    const listContainer = document.createElement('div');
+    listContainer.style.paddingTop = "50px";
+
+    for (let t = maxT; t >= minT; t--) {
+        const y = Math.floor(t / 12);
+        const m = (t % 12) + 1;
+        const mKey = `${y}-${m}`;
+        const data = monthStats[mKey] || { count: 0, call: 0 };
+        
+        const div = document.createElement('div');
+        div.className = 'modal-list-item';
+        div.style.flexDirection = 'row';
+        div.style.justifyContent = 'space-between';
+        
+        let subText = `${data.count}件`;
+        if (data.call > 0) subText += ` / ☎${window.formatCallTime(data.call)}`;
+        
+        div.innerHTML = `<span style="font-size:16px; font-weight:bold;">${y}年 ${m}月</span> <span style="font-size:14px; color:var(--text-muted);">${subText}</span>`;
+        div.onclick = () => {
+            gCalDate = new Date(y, m - 1, 1);
+            window.closeGlobalMonthList();
+            window.initGlobalCalendar();
+        };
+        listContainer.appendChild(div);
+    }
+    list.appendChild(listContainer);
+};
+
+window.closeGlobalMonthList = () => {
+    const list = findViewById('global-month-list-view');
+    const grid = findViewById('global-calendar-grid');
+    if (!list) return;
+    list.innerHTML = '';
+    list.classList.remove('full-screen');
+    list.classList.add('hidden');
+    grid.classList.remove('hidden');
+    grid.style.display = 'grid';
+    findViewById('global-cal-prev-btn').classList.remove('hidden');
+    findViewById('global-cal-next-btn').classList.remove('hidden');
+};
+
+window.showGlobalDailyLogs = async (dateStr) => {
+    const chats = await LineChatDB.getAllChats();
+    let hits = [];
+    chats.forEach(chat => {
+        chat.messages.forEach((m, idx) => {
+            if (m.date === dateStr && m.type === 'msg') {
+                hits.push({ chat, message: m, index: idx });
+            }
+        });
+    });
+
+    if (hits.length === 0) {
+        if (typeof showToast === 'function') showToast('この日の記録はありません');
+        return;
+    }
+
+    // Sort by timestamp ascending (Timeline order)
+    hits.sort((a, b) => (a.message._timestamp || 0) - (b.message._timestamp || 0));
+
+    const modal = findViewById(UI_MODALS.G_SEARCH);
+    const resultsNode = findViewById('global-search-results');
+    const titleNode = modal.querySelector('h3');
+
+    // UI Tweak: Transform Search Modal to "Daily Log" mode
+    titleNode.innerHTML = `${dateStr} の記録 (<span id="global-search-total-hits">${hits.length}</span>件)`;
+    findViewById('global-search-input').style.display = 'none';
+    findViewById('global-search-config').style.display = 'none';
+
+    let html = '';
+    hits.forEach(h => {
+        // V34: Unified HTML with global search and individual search
+        html += `<div class="modal-list-item global-hit-card" data-id="${h.chat.id}" data-idx="${h.index}">
+            <div class="search-hit-sender">
+                <span style="color:var(--primary-color); font-weight:bold;">[${h.chat.title}]</span> 
+                <span style="color:#7494c0; margin-left:5px;">${h.message.date || ''}</span> 
+                ${h.message.sender} 
+                <span style="color:#777; font-weight:normal;">(${h.message.time || ''})</span>
+            </div>
+            <div class="search-hit-text">${h.message.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        </div>`;
+    });
+    resultsNode.innerHTML = html;
+    
+    pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.G_SEARCH });
+};
+
+// V21: State Constants
+const UI_VIEWS = {
+    LIST: 'list',
+    ROOM: 'room',
+    MANUAL: 'manual',
+    LOCK: 'lock',
+    FAKE: 'fake',
+    FAKE_MEMO: 'fake_memo'
+};
+
+const UI_MODALS = {
+    SETTINGS: 'settings-modal',
+    SEARCH: 'search-modal',
+    DATE: 'date-modal',
+    FAVORITES: 'favorites-modal',
+    ARCHIVED: 'archived-modal',
+    MEMO_LIST: 'memo-modal',
+    ROOM_SETTINGS: 'room-settings-modal',
+    BACKUP_OPT: 'backup-options-modal',
+    G_SEARCH: 'global-search-modal',
+    G_CAL: 'global-calendar-modal'
+};
 
 const listView = document.getElementById('list-view');
 const roomView = document.getElementById('room-view');
@@ -101,6 +355,30 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// V23: Event Delegation for Chat List
+if (chatListContainer) {
+    chatListContainer.addEventListener('click', (e) => {
+        const item = e.target.closest('.chat-item');
+        if (item && item.dataset.id) {
+            console.log('トークがクリックされました (List):', item.dataset.id);
+            window.isOpenedFromArchive = false;
+            openChat(item.dataset.id);
+        }
+    });
+}
+// V23: Event Delegation for Archived List
+const archivedListContainer = document.getElementById('archived-list');
+if (archivedListContainer) {
+    archivedListContainer.addEventListener('click', (e) => {
+        const item = e.target.closest('.chat-item');
+        if (item && item.dataset.id) {
+            console.log('トークがクリックされました (Archive):', item.dataset.id);
+            window.isOpenedFromArchive = true;
+            openChat(item.dataset.id);
+        }
+    });
+}
+
 ctxRename.addEventListener('click', async () => {
     contextMenu.classList.remove('active');
     if (!contextTargetId) return;
@@ -153,34 +431,137 @@ async function initCrypto(passcode) {
     } else {
         salt = ArkiveCrypto.base64ToSalt(saltB64);
     }
-    const key = await ArkiveCrypto.deriveKey(passcode || "", salt);
+    // V21: Always encrypt with at least ark_default_secret
+    const key = await ArkiveCrypto.deriveKey(passcode || "ark_default_secret", salt);
     LineChatDB.setKey(key);
 }
 
-async function initApp() {
-    // V20: Unified initialization after login or reload
-    await LineChatDB.init(); // Ensure DB is initialized with current key
+async function initApp(isRestore = false) {
+    // V20-21: Unified initialization
+    await LineChatDB.init(); 
+    window.dbReady = true;
+    if (!isRestore) {
+        // Initial state for History API
+        history.replaceState({ view: UI_VIEWS.LIST }, "");
+    }
     currentChat = null;
     currentChatId = null;
+    window.isFakeMode = false;
+    
+    // Hide all main views
     roomView.classList.remove('active');
     listView.classList.add('active');
+    findViewById('manual-view').style.display = 'none';
+    findViewById('fake-app').style.display = 'none';
+    
     await loadChatList();
+    initV21();
+}
+
+function findViewById(id) { return document.getElementById(id); }
+
+/**
+ * V21 History API Navigation
+ */
+window.pushViewState = function(state) {
+    history.pushState(state, "");
+    applyState(state);
+};
+
+window.onpopstate = function(event) {
+    if (event.state) {
+        applyState(event.state);
+    } else {
+        // Default to list if empty
+        applyState({ view: UI_VIEWS.LIST });
+    }
+};
+
+async function applyState(state) {
+    const views = [listView, roomView, findViewById('manual-view'), findViewById('fake-app')];
+    try {
+        await waitDBReady();
+        closeAllModals(false); // Close modals without pushing state
+        
+        views.forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
+
+        if (state.view === UI_VIEWS.LIST) {
+            listView.style.display = 'flex';
+            listView.classList.add('active');
+            await loadChatList();
+        } else if (state.view === UI_VIEWS.ROOM && state.chatId) {
+            roomView.style.display = 'flex';
+            roomView.classList.add('active');
+            await openChatInternal(Number(state.chatId));
+        } else if (state.view === UI_VIEWS.MANUAL) {
+            findViewById('manual-view').style.display = 'flex';
+            findViewById('manual-view').classList.add('active');
+        } else if (state.view === UI_VIEWS.FAKE) {
+            initFakeModeInternal();
+        }
+
+        if (state.modal) {
+            if (state.modal === UI_MODALS.MEMO_LIST) {
+                initMemoInternal();
+            } else if (state.modal === UI_MODALS.SETTINGS) {
+                openSettingsInternal();
+            } else if (state.modal === UI_MODALS.ARCHIVED) {
+                renderArchivedList();
+                archivedModal.classList.remove('hidden');
+            } else if (state.modal === UI_MODALS.FAVORITES) {
+                openFavs(state.chatId);
+            } else if (state.modal === UI_MODALS.G_SEARCH) {
+                // V33: Reset Search UI (might have been hidden by Daily Logs)
+                const gModal = findViewById(UI_MODALS.G_SEARCH);
+                gModal.querySelector('h3').innerHTML = `全トーク横断検索 (<span id="global-search-total-hits">0</span>件)`;
+                findViewById('global-search-input').style.display = 'block';
+                findViewById('global-search-config').style.display = 'flex';
+                gModal.classList.remove('hidden');
+                findViewById('global-search-input').focus();
+            } else if (state.modal === UI_MODALS.G_CAL) {
+                // V30: Safe global call
+                if (typeof window.initGlobalCalendar === 'function') {
+                    await window.initGlobalCalendar();
+                } else {
+                    console.warn('initGlobalCalendar is not ready yet');
+                }
+                findViewById(UI_MODALS.G_CAL).classList.remove('hidden');
+            } else {
+                const modal = findViewById(state.modal);
+                if (modal) modal.classList.remove('hidden');
+            }
+        }
+    } catch (e) {
+        console.error('applyState error:', e);
+        // V30: Fail-safe recovery to List View
+        views.forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
+        listView.style.display = 'flex';
+        listView.classList.add('active');
+        alert('画面切り替え時にエラーが発生しましたが、一覧に復帰しました。');
+    }
+}
+
+function closeAllModals(push = true) {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(m => m.classList.add('hidden'));
+    
+    // If we closed a modal, we might need to update the history state if it was a push
+    // For simplicity, closeAllModals(false) is used in applyState.
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
     const savedHash = localStorage.getItem('app_password_hash');
     const fakeHash = localStorage.getItem('app_fake_password_hash');
 
-    // V15 Auth Logic
+    // V15-21 Auth Logic
     if (!savedHash && !fakeHash) {
-        // [6.1] No passcodes set -> Skip
         if (!window.crypto || !window.crypto.subtle) {
             alert('環境エラー: HTTPSまたはlocalhostが必要です');
             return;
         }
         lockScreen.style.display = 'none';
         mainApp.style.display = 'flex';
-        await initCrypto("");
+        await initCrypto(""); // uses default secret internally in v21
         await initApp();
         return;
     }
@@ -300,6 +681,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // -- Settings Modal --
 settingsBtn.onclick = () => {
+    // V22: Use pushViewState
+    pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.SETTINGS });
+};
+
+// Internal open logic called by applyState
+function openSettingsInternal() {
     const confirmPassInput = document.getElementById('confirm-password');
     const fakePassInput = document.getElementById('fake-password');
     const confirmFakePassInput = document.getElementById('confirm-fake-password');
@@ -313,11 +700,11 @@ settingsBtn.onclick = () => {
     confirmFakePassInput.value = '';
     
     settingsModal.classList.remove('hidden');
-};
-closeSettingsBtn.onclick = () => settingsModal.classList.add('hidden');
+}
+closeSettingsBtn.onclick = () => history.back();
 
-if (manualBtn) manualBtn.onclick = () => manualModal.classList.remove('hidden');
-if (closeManualBtn) closeManualBtn.onclick = () => manualModal.classList.add('hidden');
+if (manualBtn) manualBtn.onclick = () => pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.MANUAL });
+if (closeManualBtn) closeManualBtn.onclick = () => history.back();
 
 passToggle.onchange = async () => {
     if (passToggle.checked) {
@@ -602,17 +989,8 @@ async function loadChatList(showArchived = false) {
 
         const div = document.createElement('div');
         div.className = 'chat-item';
-        // 全ての複雑なスワイプ・カスタム長押し判定を一旦廃止し、最も安全で確実な onclick による発火を保証する
-        div.onclick = (e) => {
-            if (openSwipeElement === div) {
-                div.style.transform = `translateX(0px)`;
-                openSwipeElement = null;
-                return;
-            }
-            // 通常のクリックで確実に開く
-            window.isOpenedFromArchive = false;
-            openChat(chat.id);
-        };
+        div.dataset.id = chat.id;
+        // V23: イベント委譲を利用するため、個別の onclick は設定しない
 
         // 右クリック（PC）または一部モバイルブラウザのネイティブ長押しで削除メニューを出す代替
         div.oncontextmenu = (e) => {
@@ -1151,81 +1529,103 @@ iconInput.addEventListener('change', async (e) => {
     e.target.value = '';
 });
 
+/**
+ * V21 Public Navigation wrapper for Chat
+ */
 async function openChat(id) {
-    const chat = await LineChatDB.getChatById(id);
-    if (!chat) return;
-    
-    if (!chat.myName) {
-        const uniqueSenders = new Set();
-        for (const m of chat.messages) {
-            if (m.type === 'msg' && m.sender) uniqueSenders.add(m.sender);
-            if (uniqueSenders.size >= 2) break;
-        }
-        const senderList = Array.from(uniqueSenders);
-        if (senderList.length >= 2) {
-            chat.myName = senderList[1];
-        } else if (senderList.length === 1) {
-            chat.myName = senderList[0];
-        }
-        await LineChatDB.updateChat(chat);
-    }
-    
-    currentChat = chat;
-    currentChatId = id;
-    roomTitle.textContent = chat.title;
-    
-    // --- V20: Flip Selection Rotation logic ---
-    flipBtn.onclick = async () => {
-        if (!currentChat || !currentChat.messages) return;
-        // Find all unique senders
-        const senders = Array.from(new Set(currentChat.messages.map(m => m.sender).filter(s => !!s)));
-        if (senders.length <= 1) {
-            showToast("発言者が1人以下のため、切り替えは不要です");
-            return;
-        }
-        
-        let currentIndex = senders.indexOf(currentChat.myName);
-        let nextIndex = (currentIndex + 1) % senders.length;
-        currentChat.myName = senders[nextIndex];
-        
-        await LineChatDB.updateChat(currentChat);
-        vScroll.updateVisibleItems(true);
-        showToast(currentChat.myName + ' を自分(右側)に設定しました');
-    };
+    pushViewState({ view: UI_VIEWS.ROOM, chatId: id });
+}
 
-    if (chat.icon) {
-        iconDisplay.style.backgroundImage = `url(${chat.icon})`;
-        iconText.style.display = 'none';
-    } else {
-        iconDisplay.style.backgroundImage = 'none';
-        iconText.style.display = 'block';
-        iconText.textContent = (chat.title || "？").charAt(0);
+async function openChatInternal(id) {
+    try {
+        const numericId = Number(id);
+        if (isNaN(numericId)) throw new Error('無効なトークIDです');
+        
+        const chat = await LineChatDB.getChatById(numericId);
+        if (!chat) throw new Error('トークデータが見つかりません');
+        
+        if (!chat.myName) {
+            const uniqueSenders = new Set();
+            for (const m of chat.messages) {
+                if (m.type === 'msg' && m.sender) uniqueSenders.add(m.sender);
+                if (uniqueSenders.size >= 2) break;
+            }
+            const senderList = Array.from(uniqueSenders);
+            if (senderList.length >= 2) {
+                chat.myName = senderList[1];
+            } else if (senderList.length === 1) {
+                chat.myName = senderList[0];
+            }
+            await LineChatDB.updateChat(chat);
+        }
+        
+        currentChat = chat;
+        currentChatId = id;
+        roomTitle.textContent = chat.title;
+        
+        // --- V20: Flip Selection Rotation logic ---
+        flipBtn.onclick = async () => {
+            if (!currentChat || !currentChat.messages) return;
+            const senders = Array.from(new Set(currentChat.messages.map(m => m.sender).filter(s => !!s)));
+            if (senders.length <= 1) {
+                showToast("発言者が1人以下のため、切り替えは不要です");
+                return;
+            }
+            let currentIndex = senders.indexOf(currentChat.myName);
+            let nextIndex = (currentIndex + 1) % senders.length;
+            currentChat.myName = senders[nextIndex];
+            await LineChatDB.updateChat(currentChat);
+            vScroll.updateVisibleItems(true);
+            showToast(currentChat.myName + ' を自分(右側)に設定しました');
+        };
+
+        if (chat.icon) {
+            iconDisplay.style.backgroundImage = `url(${chat.icon})`;
+            iconText.style.display = 'none';
+        } else {
+            iconDisplay.style.backgroundImage = 'none';
+            iconText.style.display = 'block';
+            iconText.textContent = (chat.title || "？").charAt(0);
+        }
+        
+        flipSender = false;
+        searchHighlightIndices.clear();
+        activeSearchIndexValue = -1;
+        window.searchKeyword = '';
+        
+        document.dispatchEvent(new Event('chatOpened'));
+        
+        if (!chat.messages || chat.messages.length === 0) {
+            vScroll.setItems([]);
+        } else {
+            vScroll.setItems(chat.messages);
+            
+            // V31: Handle pending jump index from global search
+            if (window.pendingSearchJumpIndex !== undefined) {
+                console.log('保留中のジャンプを実行します:', window.pendingSearchJumpIndex);
+                vScroll.scrollToIndex(window.pendingSearchJumpIndex);
+                window.pendingSearchJumpIndex = undefined;
+            } else {
+                vScroll.scrollToIndex(chat.messages.length - 1);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to open chat:', err);
+        alert('トークデータの読み込みに失敗しました。: ' + err.message);
+        hideLoading();
+        
+        // V27: Fail-safe UI recovery
+        roomView.style.display = 'none';
+        roomView.classList.remove('active');
+        listView.style.display = 'flex';
+        listView.classList.add('active');
+        
+        history.replaceState({ view: UI_VIEWS.LIST }, "");
     }
-    
-    flipSender = false;
-    searchHighlightIndices.clear();
-    activeSearchIndexValue = -1;
-    window.searchKeyword = '';
-    
-    document.dispatchEvent(new Event('chatOpened'));
-    
-    listView.classList.remove('active');
-    roomView.classList.add('active');
-    
-    vScroll.setItems(chat.messages);
-    vScroll.updateVisibleItems(true); 
 }
 
 backBtn.addEventListener('click', () => {
-    roomView.classList.remove('active');
-    listView.classList.add('active');
-    currentChat = null;
-    vScroll.setItems([]);
-    
-    if (window.isOpenedFromArchive) {
-        document.getElementById('settings-modal').classList.remove('hidden');
-        document.getElementById('archived-modal').classList.remove('hidden');
-    }
+    history.back();
 });
 
 // V12 Features Implementation
@@ -1252,7 +1652,7 @@ document.querySelectorAll('h1').forEach(h => {
         h.onclick = () => aboutModal.classList.remove('hidden');
     }
 });
-document.getElementById('close-about-modal')?.addEventListener('click', () => aboutModal.classList.add('hidden'));
+document.getElementById('close-about-modal')?.addEventListener('click', () => history.back());
 
 // Favorites Modal
 const favModal = document.getElementById('favorites-modal');
@@ -1282,13 +1682,21 @@ const openFavs = async (specificChatId = null) => {
     if (!hasFavs) favList.innerHTML = `<div style="padding:40px; text-align:center; color:var(--text-muted);">${specificChatId ? 'このルームにお気に入りはありません' : 'お気に入りはありません'}</div>`;
     favModal.classList.remove('hidden');
 };
-document.getElementById('favorites-list-btn')?.addEventListener('click', () => openFavs());
-document.getElementById('room-favorites-btn')?.addEventListener('click', () => openFavs(currentChatId));
-document.getElementById('close-favorites-modal')?.addEventListener('click', () => favModal.classList.add('hidden'));
+document.getElementById('favorites-list-btn')?.addEventListener('click', () => {
+    pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.FAVORITES });
+});
+document.getElementById('room-favorites-btn')?.addEventListener('click', () => {
+    pushViewState({ view: UI_VIEWS.ROOM, chatId: currentChatId, modal: UI_MODALS.FAVORITES });
+});
+document.getElementById('close-favorites-modal')?.addEventListener('click', () => history.back());
 
 // Archived Modal
 const archivedList = document.getElementById('archived-list');
 document.getElementById('archive-view-btn')?.addEventListener('click', async () => {
+    pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.ARCHIVED });
+});
+
+async function renderArchivedList() {
     const chats = await LineChatDB.getAllChats();
     const archived = chats.filter(c => c.isArchived);
     archivedList.innerHTML = '';
@@ -1297,7 +1705,8 @@ document.getElementById('archive-view-btn')?.addEventListener('click', async () 
     } else {
         archived.forEach(c => {
             const div = document.createElement('div');
-            div.className = 'chat-item'; // Re-use list style
+            div.className = 'chat-item';
+            div.dataset.id = c.id;
             div.style.borderBottom = '1px solid var(--border-color)';
             div.innerHTML = `
                 <div class="chat-info">
@@ -1308,14 +1717,8 @@ document.getElementById('archive-view-btn')?.addEventListener('click', async () 
                     </div>
                 </div>
             `;
-            div.onclick = () => { 
-                archivedModal.classList.add('hidden'); 
-                document.getElementById('settings-modal').classList.add('hidden'); // V20 Fix
-                window.isOpenedFromArchive = true;
-                openChat(c.id); 
-            };
+            // V23: イベント委譲を利用
             
-            // Console Menu support for archived
             div.oncontextmenu = (e) => {
                 e.preventDefault();
                 contextTargetId = c.id;
@@ -1325,7 +1728,6 @@ document.getElementById('archive-view-btn')?.addEventListener('click', async () 
                 contextMenu.style.top = `${Math.min(cy, window.innerHeight - 100)}px`;
                 contextMenu.classList.add('active');
                 
-                // Switch context menu mode (restore instead of archive)
                 ctxArchive.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> 一覧に戻す';
                 ctxArchive.onclick = async () => {
                     contextMenu.classList.remove('active');
@@ -1334,24 +1736,22 @@ document.getElementById('archive-view-btn')?.addEventListener('click', async () 
                         target.isArchived = false;
                         await LineChatDB.updateChat(target);
                         showToast("トークを一覧に戻しました");
+                        renderArchivedList();
                         loadChatList();
-                        document.getElementById('archive-view-btn').click(); // Refresh archive list
                     }
                 };
             };
             archivedList.appendChild(div);
         });
     }
-    archivedModal.classList.remove('hidden');
-});
-document.getElementById('close-archived-modal')?.addEventListener('click', () => {
-    archivedModal.classList.add('hidden');
-    // Reset context menu for next time
-    ctxArchive.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path></svg> アーカイブ';
-    ctxArchive.onclick = archiveHandler;
-});
+}
 
-// Context Menu Archive logic refactored
+document.getElementById('close-archived-modal')?.addEventListener('click', () => history.back());
+
+const ctxArchive = document.createElement('div');
+ctxArchive.className = 'context-item';
+ctxArchive.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path></svg> アーカイブ';
+ctxDelete.before(ctxArchive);
 const archiveHandler = async () => {
     contextMenu.classList.remove('active');
     if (!contextTargetId) return;
@@ -1362,10 +1762,6 @@ const archiveHandler = async () => {
     showToast("トークをアーカイブしました");
     loadChatList();
 };
-const ctxArchive = document.createElement('div');
-ctxArchive.className = 'context-item';
-ctxArchive.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path></svg> アーカイブ';
-ctxDelete.before(ctxArchive);
 ctxArchive.onclick = archiveHandler;
 
 // Shuffle Logic
@@ -1384,7 +1780,6 @@ document.getElementById('shuffle-room-btn')?.addEventListener('click', () => {
 });
 
 // Fake Mode (Shopping List)
-// Fake Mode (Shopping List)
 /**
  * V17: Advanced Memo System (Main)
  */
@@ -1393,7 +1788,13 @@ async function initMemo(mode) {
         initFakeMode();
         return;
     }
+    
+    // V22: History API Support for Main Memo
+    pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.MEMO_LIST });
+}
 
+// Actual initialization called by applyState
+async function initMemoInternal() {
     const modal = document.getElementById('memo-modal');
     const indexView = document.getElementById('memo-index-view');
     const editView = document.getElementById('memo-edit-view');
@@ -1440,7 +1841,6 @@ async function initMemo(mode) {
 
     const loadMemos = async () => {
         let raw = await LineChatDB.getSetting(storageKey, []);
-        // Migration: If array of strings, convert to objects
         currentMemos = raw.map(m => {
             if (typeof m === 'string') return { title: m.substring(0, 15) || '無題', text: m, time: Date.now() };
             if (m.text && !m.title) return { ...m, title: m.text.substring(0, 15) || '無題' };
@@ -1484,7 +1884,7 @@ async function initMemo(mode) {
     };
 
     backBtn.onclick = () => switchView('index');
-    closeBtn.onclick = () => modal.classList.add('hidden');
+    closeBtn.onclick = () => history.back(); 
 
     gotoEditBtn.onclick = () => {
         const memo = currentMemos[editingIdx];
@@ -1528,15 +1928,36 @@ async function initMemo(mode) {
 }
 
 async function initFakeMode() {
-    const fakeApp = document.getElementById('fake-app');
-    const todoInput = document.getElementById('fake-todo-input');
-    const todoAddBtn = document.getElementById('fake-todo-add-btn');
-    const todoList = document.getElementById('fake-todo-list');
+    pushViewState({ view: UI_VIEWS.FAKE });
+}
+
+async function initFakeModeInternal() {
+    const fakeApp = findViewById('fake-app');
+    const todoInput = findViewById('fake-todo-input');
+    const todoAddBtn = findViewById('fake-todo-add-btn');
+    const todoList = findViewById('fake-todo-list');
+    const backBtn = findViewById('fake-back-btn');
+    const memoBtn = findViewById('fake-memo-btn');
+    const todoView = findViewById('fake-todo-view');
+    const memoView = findViewById('fake-memo-view');
+    const memoTextarea = findViewById('fake-memo-textarea');
+    const memoBackBtn = findViewById('fake-memo-back-btn');
     
     fakeApp.style.display = 'flex';
     document.body.style.backgroundColor = '#fff';
     
-    const storageKey = 'arkive_fake_memo_data';
+    backBtn.onclick = () => location.reload(); 
+    memoBtn.onclick = () => {
+        todoView.style.display = 'none';
+        memoView.style.display = 'flex';
+    };
+    memoBackBtn.onclick = () => {
+        memoView.style.display = 'none';
+        todoView.style.display = 'flex';
+    };
+
+    const storageKey = 'arkive_fake_todo_data';
+    const memoKey = 'arkive_fake_secret_memo';
     
     const loadTodos = async () => {
         const todos = await LineChatDB.getSetting(storageKey, []);
@@ -1551,118 +1972,291 @@ async function initFakeMode() {
                 </div>
                 <button class="fake-todo-del" style="margin-left:10px; cursor:pointer;">削除</button>
             `;
-            
             const check = li.querySelector('input');
             check.onchange = async () => {
                 todos[idx].done = check.checked;
                 await LineChatDB.setSetting(storageKey, todos);
                 loadTodos();
             };
-            
-            li.querySelector('span').onclick = () => {
-                const newT = prompt('編集:', item.text);
-                if (newT && newT.trim() !== '') {
-                    todos[idx].text = newT.trim();
-                    LineChatDB.setSetting(storageKey, todos).then(loadTodos);
-                }
-            };
-            
             li.querySelector('.fake-todo-del').onclick = async () => {
-                if(confirm('削除しますか？')) {
-                    todos.splice(idx, 1);
-                    await LineChatDB.setSetting(storageKey, todos);
-                    loadTodos();
-                }
+                todos.splice(idx, 1);
+                await LineChatDB.setSetting(storageKey, todos);
+                loadTodos();
             };
             todoList.appendChild(li);
         });
-        
-        if (todos.length === 0) {
-            todoList.innerHTML = '<div style="padding:60px 20px; text-align:center; color:#ccc; font-size:15px;">リストは空です。<br>買いたいものを追加しましょう。</div>';
-        }
+        if (todos.length === 0) todoList.innerHTML = '<div style="padding:40px; text-align:center; color:#ccc;">リストは空です</div>';
+    };
+
+    const loadMemo = async () => {
+        const memo = await LineChatDB.getSetting(memoKey, "");
+        memoTextarea.value = memo;
+    };
+
+    memoTextarea.oninput = async () => {
+        await LineChatDB.setSetting(memoKey, memoTextarea.value);
     };
 
     todoAddBtn.onclick = async () => {
         const val = todoInput.value.trim();
         if (!val) return;
         const todos = await LineChatDB.getSetting(storageKey, []);
-        todos.unshift({ text: val, done: false, time: Date.now() });
+        todos.unshift({ text: val, done: false });
         await LineChatDB.setSetting(storageKey, todos);
         todoInput.value = '';
         loadTodos();
     };
 
-    todoInput.onkeypress = (e) => { if(e.key === 'Enter') todoAddBtn.click(); };
     loadTodos();
+    loadMemo();
 }
 
-document.getElementById('main-memo-btn')?.addEventListener('click', () => initMemo('main'));
+/**
+ * V21 Global Features
+ */
+function initGlobalFeatures() {
+    findViewById('settings-btn').onclick = () => pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.SETTINGS });
+    findViewById('close-settings-modal').onclick = () => history.back();
+    findViewById('list-manual-btn').onclick = () => pushViewState({ view: UI_VIEWS.MANUAL });
+    findViewById('manual-back-btn').onclick = () => history.back();
+    findViewById('global-search-btn').onclick = () => pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.G_SEARCH });
+    findViewById('close-global-search-modal').onclick = () => history.back();
+    findViewById('global-calendar-btn').onclick = () => pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.G_CAL });
+    findViewById('close-global-calendar-modal').onclick = () => history.back();
+    
+    const gSearchInput = findViewById('global-search-input');
+    const gSearchResults = findViewById('global-search-results');
+    const gSearchSort = findViewById('global-search-sort-btn');
+    const gSearchDateS = findViewById('global-search-date-start');
+    const gSearchDateE = findViewById('global-search-date-end');
+    const gSearchMemberBtn = findViewById('global-search-member-btn');
+    
+    let gSearchMemberFilter = new Set();
 
-// V13-15: Backup & Restore UI logic
-document.getElementById('backup-btn')?.addEventListener('click', async () => {
-    try {
-        showLoading();
-        await new Promise(resolve => setTimeout(resolve, 100));
-        const fileNameBase = document.getElementById('backup-filename')?.value.trim() || `arkive_backup_${new Date().toISOString().split('T')[0].replace(/-/g, '')}`;
-        const encryptToggle = document.getElementById('backup-encrypt-toggle')?.checked || false;
+    const gSearchTotalHits = findViewById('global-search-total-hits');
+
+    const triggerGlobalSearch = async () => {
+        const val = gSearchInput.value.trim().toLowerCase();
+        if (val.length < 1) { 
+            gSearchResults.innerHTML = ''; 
+            if (gSearchTotalHits) gSearchTotalHits.textContent = '0';
+            return; 
+        }
         
-        // Export. Settings includes main memo if encrypted via db.js logic.
-        // We explicitly pass excludeImages=true.
-        const data = await LineChatDB.exportFullBackup(true); 
+        const tokens = val.split(/\s+/).filter(t => t.length > 0);
+        const includeTokens = tokens.filter(t => !t.startsWith('-'));
+        const excludeTokens = tokens.filter(t => t.startsWith('-')).map(t => t.substring(1));
+
+        const dStart = gSearchDateS.value ? new Date(gSearchDateS.value + 'T00:00:00').getTime() : 0;
+        const dEnd = gSearchDateE.value ? new Date(gSearchDateE.value + 'T23:59:59').getTime() : Infinity;
+        const sortMode = gSearchSort.getAttribute('data-sort');
+
+        const chats = await LineChatDB.getAllChats();
+        let hits = [];
+        window.currentGlobalHitSenders.clear();
+
+        chats.forEach(chat => {
+            chat.messages.forEach((m, idx) => {
+                if (window.matchMessage(m, includeTokens, excludeTokens, { dStart, dEnd, memberFilter: gSearchMemberFilter })) {
+                    hits.push({ chat, message: m, index: idx });
+                    if (m.sender) window.currentGlobalHitSenders.add(m.sender);
+                }
+            });
+        });
+
+        hits.sort((a, b) => {
+            const tsA = a.message._timestamp || 0;
+            const tsB = b.message._timestamp || 0;
+            return sortMode === 'desc' ? tsB - tsA : tsA - tsB;
+        });
+
+        if (gSearchTotalHits) gSearchTotalHits.textContent = hits.length;
+
+        let html = '';
+        const escapedKeyword = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+
+        hits.slice(0, 200).forEach(h => {
+            let snippet = h.message.text;
+            if (snippet.length > 60) snippet = snippet.substring(0, 60) + '...';
+            snippet = snippet.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(regex, '<mark>$1</mark>');
+
+            html += `<div class="modal-list-item global-hit-card" data-id="${h.chat.id}" data-idx="${h.index}">
+                <div class="search-hit-sender">
+                    <span style="color:var(--primary-color); font-weight:bold;">[${h.chat.title}]</span> 
+                    <span style="color:#7494c0; margin-left:5px;">${h.message.date || ''}</span> 
+                    ${h.message.sender} 
+                    <span style="color:#777; font-weight:normal;">(${h.message.time || ''})</span>
+                </div>
+                <div class="search-hit-text">${snippet}</div>
+            </div>`;
+        });
+        gSearchResults.innerHTML = html || '<div style="text-align:center; padding:20px; color:var(--text-muted);">見つかりませんでした</div>';
+    };
+
+    gSearchInput.oninput = triggerGlobalSearch;
+    gSearchDateS.onchange = triggerGlobalSearch;
+    gSearchDateE.onchange = triggerGlobalSearch;
+    gSearchSort.onclick = () => {
+        const current = gSearchSort.getAttribute('data-sort');
+        if (current === 'desc') {
+            gSearchSort.setAttribute('data-sort', 'asc');
+            gSearchSort.textContent = '古い順';
+        } else {
+            gSearchSort.setAttribute('data-sort', 'desc');
+            gSearchSort.textContent = '新しい順';
+        }
+        triggerGlobalSearch();
+    };
+
+    gSearchMemberBtn.onclick = async () => {
+        const senders = window.currentGlobalHitSenders;
+        if (senders.size === 0) {
+            if (typeof showToast === 'function') showToast('検索結果がありません');
+            return;
+        }
         
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${fileNameBase}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast("バックアップを作成しました");
-    } catch (e) {
-        console.error(e);
-        alert("バックアップの作成に失敗しました");
-    } finally {
-        hideLoading();
-    }
-});
+        const filterList = document.getElementById('member-filter-list');
+        filterList.innerHTML = '';
+        
+        // Sort senders for better UX
+        Array.from(senders).sort().forEach(name => {
+            const label = document.createElement('label');
+            label.style = "display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid #eee; font-size:16px; color:var(--text-main);";
+            const isChecked = gSearchMemberFilter.has(name) || gSearchMemberFilter.size === 0;
+            label.innerHTML = `<input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} style="width:20px; height:20px;"> <span style="flex:1;">${name}</span>`;
+            filterList.appendChild(label);
+        });
+        
+        // Use existing member filter modal structure but redirect 'Apply' to global
+        findViewById('member-filter-modal').classList.remove('hidden');
+        const applyBtn = findViewById('member-filter-apply');
+        const originalOnClick = applyBtn.onclick; 
+        
+        applyBtn.onclick = () => {
+            const checks = filterList.querySelectorAll('input');
+            gSearchMemberFilter.clear();
+            let allSelected = true;
+            checks.forEach(c => {
+                if (c.checked) gSearchMemberFilter.add(c.value);
+                else allSelected = false;
+            });
+            if (allSelected) gSearchMemberFilter.clear();
+            findViewById('member-filter-modal').classList.add('hidden');
+            applyBtn.onclick = originalOnClick; // Restore
+            triggerGlobalSearch();
+        };
+    };
 
-const restoreInput = document.getElementById('restore-input');
-document.getElementById('restore-btn')?.addEventListener('click', () => {
-    restoreInput.click();
-});
-restoreInput?.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (!confirm("データを復元しますか？\n現在保存されているすべてのデータが上書きされます。")) {
-        e.target.value = '';
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-        try {
-            showLoading();
-            await new Promise(resolve => setTimeout(resolve, 100));
-            const data = JSON.parse(event.target.result);
-            
-            // [5.3] Import verification
-            // If the data is encrypted via __ENC__, we check if we can decrypt a sample item OR just let db.js try.
-            // For now, assume if db.js import succeeds, it's fine.
-            
-            await LineChatDB.importFullBackup(data);
-            alert("復元が完了しました。ページを再読み込みします。");
-            location.reload();
-        } catch (err) {
-            console.error(err);
-            alert("復元に失敗しました。ファイル形式またはパスコードが正しくない可能性があります。");
-        } finally {
-            hideLoading();
+    // V23: Event Delegation for Global Search Results
+    gSearchResults.onclick = (e) => {
+        const card = e.target.closest('.global-hit-card');
+        if (card && card.dataset.id) {
+            const idx = parseInt(card.dataset.idx);
+            console.log('グローバル検索ヒットをクリック:', card.dataset.id, idx);
+            // V31: Set pending jump and redirect
+            window.pendingSearchJumpIndex = idx;
+            openChat(card.dataset.id);
+            findViewById('global-search-modal').classList.add('hidden');
         }
     };
-    reader.readAsText(file);
-    e.target.value = '';
-});
 
+    gSearchInput.oninput = triggerGlobalSearch;
+    gSearchDateS.onchange = triggerGlobalSearch;
+    gSearchDateE.onchange = triggerGlobalSearch;
+    gSearchSort.onclick = () => {
+        const cur = gSearchSort.getAttribute('data-sort');
+        if (cur === 'desc') {
+            gSearchSort.setAttribute('data-sort', 'asc');
+            gSearchSort.textContent = '古い順';
+        } else {
+            gSearchSort.setAttribute('data-sort', 'desc');
+            gSearchSort.textContent = '新しい順';
+        }
+        triggerGlobalSearch();
+    };
+}
 
+function initSettingsAutoSave() {
+    const pToggle = findViewById('password-toggle');
+    const fToggle = findViewById('fake-password-toggle');
+    const pWarn = findViewById('passcode-warn-msg');
+    const pContainer = findViewById('password-setup-container');
+    const fInputs = findViewById('fake-password-inputs');
+    const updateVisibility = () => {
+        pWarn.style.display = pToggle.checked ? 'block' : 'none';
+        pContainer.style.display = pToggle.checked ? 'block' : 'none';
+        fInputs.style.display = fToggle.checked ? 'block' : 'none';
+    };
+    pToggle.onchange = () => {
+        updateVisibility();
+        if (!pToggle.checked) {
+            if (confirm("パスコードロックを無効にしますか？")) {
+                localStorage.removeItem('app_password_hash');
+                localStorage.removeItem('app_fake_password_hash');
+                showToast("無効化しました");
+            } else { pToggle.checked = true; updateVisibility(); }
+        }
+    };
+    fToggle.onchange = updateVisibility;
+    findViewById('theme-select').onchange = (e) => {
+        localStorage.setItem('app_theme', e.target.value);
+        applyTheme(e.target.value);
+        showToast("テーマを適用しました");
+    };
+    const savedHash = localStorage.getItem('app_password_hash');
+    const fakeHash = localStorage.getItem('app_fake_password_hash');
+    if (savedHash) pToggle.checked = true;
+    if (fakeHash) fToggle.checked = true;
+    updateVisibility();
+}
 
+function initBackupHandlers() {
+    findViewById('room-settings-export-btn').onclick = () => {
+        pushViewState({ view: UI_VIEWS.ROOM, chatId: currentChatId, modal: UI_MODALS.BACKUP_OPT });
+    };
+    findViewById('backup-opt-json').onclick = () => { history.back(); if (currentChat) exportChatJson(currentChat); };
+    findViewById('backup-opt-txt').onclick = () => { history.back(); if (currentChat) exportChatTxt(currentChat); };
+    findViewById('backup-opt-cancel').onclick = () => history.back();
+    findViewById('close-backup-options-modal').onclick = () => history.back();
+}
+
+function exportChatJson(chat) {
+    const blob = new Blob([JSON.stringify(chat, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `${chat.title}.json`;
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportChatTxt(chat) {
+    let txt = `[LINE] トーク履歴: ${chat.title}\r\n保存日時：${new Date().toLocaleString('ja-JP')}\r\n\r\n`;
+    const days = ['日','月','火','水','木','金','土'];
+    chat.messages.forEach(m => {
+        if (m.type === 'date') {
+            const d = new Date(m._timestamp);
+            txt += `\r\n${m.text}(${days[d.getDay()]})\r\n`;
+        } else if (m.type === 'msg') {
+            txt += `${m.time}\t${m.sender}\t${m.text.replace(/\n/g, '\r\n\t\t')}\r\n`;
+        } else if (m.type === 'sys') {
+            txt += `${m.time}\t${m.text}\r\n`;
+        }
+    });
+    const blob = new Blob([txt], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `${chat.title}.txt`;
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function initV21() {
+    setupGlobalCalNav();
+    initGlobalFeatures();
+    initSettingsAutoSave();
+    initBackupHandlers();
+    document.getElementById('main-memo-btn')?.addEventListener('click', () => initMemo('main'));
+}
