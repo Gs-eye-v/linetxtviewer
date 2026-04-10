@@ -50,11 +50,11 @@
     <div id="main-app" style="display: none; height: 100%; flex-direction: column;">
         <div id="list-view" class="view active">
             <header class="sticky-header">
-                <div id="list-header-left" style="display:flex; align-items:center; gap:8px;">
+                <div id="list-header-left" style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.ABOUT })">
                     <img src="./icon.jpg" alt="Ark-ive" style="width:28px; height:28px; border-radius:6px; object-fit:cover;">
                     <h1 style="font-size: 18px; margin:0; letter-spacing:1px;">Ark-ive</h1>
                 </div>
-                <div style="display:flex; gap:10px; align-items:center;">
+                <div style="display:flex; gap:4px; align-items:center;">
                     <button id="favorites-list-btn" class="icon-btn" title="お気に入り一覧（名言集）">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                     </button>
@@ -68,7 +68,7 @@
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                     </button>
                     <button id="main-memo-btn" class="icon-btn" title="メインメモ">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"></path><path d="M15 3v6h6"></path><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="15" y2="17"></line></svg>
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                     </button>
                     <label class="add-btn" title="トークを読み込む">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -134,9 +134,9 @@
 
     <!-- Date Calendar Modal -->
     <div id="date-modal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content fullscreen">
             <div class="modal-header">
-                <h3 style="visibility: hidden;">日付ジャンプ</h3>
+                <h3>日付ジャンプ</h3>
                 <button id="close-date-modal" class="close-btn">×</button>
             </div>
             <div id="calendar-container" class="calendar-container">
@@ -348,10 +348,6 @@
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path><line x1="10" y1="12" x2="14" y2="12"></line></svg>
                     </button>
                     
-                    <button id="manual-btn" style="width: 100%; padding: 15px; background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <span>Ark-ive 使い方マニュアル</span>
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </button>
                 </div>
 
                 <div class="settings-section">
@@ -375,7 +371,7 @@
                     </div>
                 </div>
                 
-                <div style="text-align: center; margin: 40px 0 20px; font-size: 12px; color: var(--text-muted); letter-spacing: 1px;">
+                <div id="settings-version-label" style="text-align: center; margin: 40px 0 20px; font-size: 12px; color: var(--text-muted); letter-spacing: 1px;">
                     Ark-ive System Version v21.0.0
                 </div>
             </div>
@@ -455,7 +451,7 @@
 
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button id="room-settings-export-btn" style="flex:1; padding:12px; background:var(--surface-hover); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>TXT出力
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>バックアップ
                     </button>
                     <button id="room-settings-apply-btn" style="flex:1; padding:12px; background:#00B900; color:white; border:none; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">適用</button>
                 </div>
@@ -497,7 +493,7 @@
                     <img src="./icon.jpg" style="width: 80px; height: 80px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                     <h2 style="margin-top: 10px; font-size: 22px;">Ark-ive</h2>
                 </div>
-                <p>Ark-ive（アーク・アイヴ）へようこそ。ここは様々なアプリの記憶を統合し、未来へ残すための場所です。</p>
+                <p>Ark-ive（アーカイヴ）へようこそ。ここは様々なアプリの記憶を統合し、未来へ残すための場所です。</p>
                 <div style="margin-top: 15px; padding: 18px; background: var(--surface-hover); border-radius: 12px; border-left: 5px solid var(--primary-color); line-height: 1.8;">
                     <strong>【洪水から言葉を守る方舟】</strong><br>
                     かつてノアの方舟が、大洪水からあらゆる生命を守り抜いた逸話のように。<br>
@@ -534,9 +530,15 @@
                         </button>
                         <h3 id="memo-modal-title">メインメモ</h3>
                     </div>
-                    <div style="display:flex; align-items:center; gap:5px;">
+                    <div style="display:flex; align-items:center; gap:4px;">
                         <button id="memo-header-add-btn" class="icon-btn" style="display:flex; color:var(--primary-color);" title="新規追加">
                             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                        <button id="memo-header-edit-btn" class="icon-btn" style="display:none;" title="編集">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                        <button id="memo-header-delete-btn" class="icon-btn" style="display:none; color:var(--delete-bg);" title="削除">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
                         <button id="close-memo-modal-btn" class="close-btn" title="閉じる">×</button>
                     </div>
@@ -563,9 +565,6 @@
             <div id="memo-detail-view" class="scroll-content" style="display:none;">
                 <h2 id="memo-detail-title" style="margin-bottom:20px; font-size:24px;"></h2>
                 <div id="memo-detail-content" class="memo-detail-content"></div>
-                <button id="memo-goto-edit-btn" class="fab" style="background:#007aff;">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                </button>
             </div>
         </div>
     </div>
@@ -601,37 +600,46 @@
     </div>
 
     <!-- V17 Fake App (Shopping List CRUD) -->
-    <div id="fake-app" class="view" style="display: none; background: #fff; color: #333; flex-direction:column; height:100%;">
-        <header class="sticky-header" style="background:#fff; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <button id="fake-back-btn" class="back-btn" style="color:#007aff;">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                </button>
-                <div style="width:32px; height:32px; background:#007aff; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">🛒</div>
-                <h1 style="font-size: 18px; color: #333; margin:0;">お買い物リスト</h1>
+    <div id="fake-app" class="view" style="display: none; background: var(--bg-color); flex-direction:column; height:100%;">
+        <header class="sticky-header">
+            <div style="display:flex; align-items:center; gap:10px; width:100%; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button id="fake-memo-back-btn" class="back-btn" style="display:none;" title="戻る">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <h1 style="font-size: 18px; margin:0;">秘密のメモ</h1>
+                </div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <button id="fake-memo-add-btn" class="icon-btn" style="color:var(--primary-color);" title="新規追加">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <button id="fake-memo-lock-btn" class="icon-btn" title="ロック画面に戻る">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </button>
+                </div>
             </div>
-            <button id="fake-memo-btn" class="icon-btn" style="color:#007aff;">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"></path><path d="M15 3v6h6"></path><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="15" y2="17"></line></svg>
-            </button>
         </header>
-        <div id="fake-todo-view" class="scroll-content" style="background:#fcfcfc; flex:1; display:flex; flex-direction:column; padding:15px;">
-            <div style="display: flex; gap: 10px; margin-bottom: 25px;">
-                <input type="text" id="fake-todo-input" placeholder="買うものを追加..." style="flex: 1; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; outline:none; background:#fff;">
-                <button id="fake-todo-add-btn" style="padding: 14px 20px; background: #007aff; color: white; border: none; border-radius: 12px; font-weight: bold; cursor:pointer;">追加</button>
-            </div>
-            <ul id="fake-todo-list" style="list-style: none; padding: 0; flex:1; overflow-y:auto;">
-                <!-- 買い物リスト項目がここに並ぶ -->
-            </ul>
+        
+        <div id="fake-memo-index-view" class="scroll-content">
+            <div id="fake-memo-list"></div>
         </div>
-        <!-- V21 Fake Memo View -->
-        <div id="fake-memo-view" class="scroll-content" style="background:#fff; display:none; flex:1; flex-direction:column;">
-            <div style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
-                <button id="fake-memo-back-btn" class="back-btn" style="color:#007aff;">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                </button>
-                <h2 style="font-size:18px; margin:0;">秘密のメモ</h2>
+    
+        <div id="fake-memo-edit-view" class="scroll-content" style="display:none;">
+            <input type="text" id="fake-memo-edit-title" placeholder="タイトルを入力" style="width:100%; padding:15px; font-size:20px; font-weight:bold; border:none; border-bottom:1px solid var(--border-color); background:transparent; color:var(--text-main); outline:none; margin-bottom:20px;">
+            <textarea id="fake-memo-edit-content" placeholder="メモの内容を入力..." style="width:100%; flex:1; padding:15px; font-size:16px; border:none; background:transparent; color:var(--text-main); outline:none; resize:none; min-height:300px;"></textarea>
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button id="fake-memo-delete-btn" style="padding:15px 25px; background:var(--delete-bg); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer; display:none;">削除</button>
+                <button id="fake-memo-save-btn" style="flex:1; padding:15px; background:var(--primary-color); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">保存する</button>
             </div>
-            <textarea id="fake-memo-textarea" placeholder="ここに入力した内容は秘密のキーで暗号化されます..." style="flex:1; width:100%; border:none; padding:15px; font-size:16px; outline:none; resize:none; line-height:1.6; color:#333;"></textarea>
+        </div>
+    
+        <div id="fake-memo-detail-view" class="scroll-content" style="display:none;">
+            <h2 id="fake-memo-detail-title" style="margin-bottom:20px; font-size:24px;"></h2>
+            <div id="fake-memo-detail-content" class="memo-detail-content" style="white-space:pre-wrap; line-height:1.6;"></div>
+            <button id="fake-memo-goto-edit-btn" class="fab" style="background:var(--primary-color); position:fixed; bottom:30px; right:30px; width:56px; height:56px; border-radius:50%; border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
         </div>
     </div>
 

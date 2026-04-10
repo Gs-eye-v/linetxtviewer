@@ -1,14 +1,23 @@
-let currentChat = null;
-let currentChatId = null;
 let vScroll = null;
 let flipSender = false;
+let currentChat = null;
+let currentChatId = null;
 
 let searchHighlightIndices = new Set();
 let activeSearchIndexValue = -1;
 window.isOpenedFromArchive = false;
 
+const APP_VERSION = "v1.0.48";
+
+// Global UI Elements
 const mainApp = document.getElementById('main-app');
 const lockScreen = document.getElementById('lock-screen');
+const listView = document.getElementById('list-view');
+const roomView = document.getElementById('room-view');
+const fakeApp = document.getElementById('fake-app');
+const manualView = document.getElementById('manual-view');
+const views = [mainApp, lockScreen, listView, roomView, fakeApp, manualView].filter(Boolean);
+
 const passcodeInput = document.getElementById('passcode-input');
 const passcodeError = document.getElementById('passcode-error');
 window.dbReady = false;
@@ -78,14 +87,6 @@ window.initGlobalCalendar = async () => {
         grid.appendChild(cell);
     }
 
-    // V36: Constant height (always 6 weeks = 42 cells)
-    const currentCells = firstDay + lastDate;
-    const remainingCells = 42 - currentCells;
-    for (let i = 0; i < remainingCells; i++) {
-        const blank = document.createElement('div');
-        blank.className = 'cal-cell cal-day_invalid';
-        grid.appendChild(blank);
-    }
     
     if (statsNode) {
         let text = `月合計: ${monthTotal.toLocaleString()}件`;
@@ -263,11 +264,10 @@ const UI_MODALS = {
     ROOM_SETTINGS: 'room-settings-modal',
     BACKUP_OPT: 'backup-options-modal',
     G_SEARCH: 'global-search-modal',
-    G_CAL: 'global-calendar-modal'
+    G_CAL: 'global-calendar-modal',
+    ABOUT: 'about-modal'
 };
 
-const listView = document.getElementById('list-view');
-const roomView = document.getElementById('room-view');
 const chatListContainer = document.getElementById('chat-list');
 const fileInput = document.getElementById('file-input');
 const backBtn = document.getElementById('back-btn');
@@ -449,10 +449,16 @@ async function initApp(isRestore = false) {
     window.isFakeMode = false;
     
     // Hide all main views
-    roomView.classList.remove('active');
-    listView.classList.add('active');
-    findViewById('manual-view').style.display = 'none';
-    findViewById('fake-app').style.display = 'none';
+    views.forEach(v => {
+        v.style.display = 'none';
+        v.classList.remove('active');
+    });
+    
+    if (mainApp) mainApp.style.display = 'flex';
+    if (listView) {
+        listView.classList.add('active');
+        listView.style.display = 'flex';
+    }
     
     await loadChatList();
     initV21();
@@ -478,33 +484,51 @@ window.onpopstate = function(event) {
 };
 
 async function applyState(state) {
-    const views = [listView, roomView, findViewById('manual-view'), findViewById('fake-app')];
+    if (!mainApp) return; 
+    
     try {
         await waitDBReady();
         closeAllModals(false); // Close modals without pushing state
         
-        views.forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
+        // Use the global views collection
+        views.forEach(v => {
+            v.style.display = 'none';
+            v.classList.remove('active');
+        });
 
         if (state.view === UI_VIEWS.LIST) {
+            mainApp.style.display = 'flex';
             listView.style.display = 'flex';
             listView.classList.add('active');
             await loadChatList();
         } else if (state.view === UI_VIEWS.ROOM && state.chatId) {
+            mainApp.style.display = 'flex';
             roomView.style.display = 'flex';
             roomView.classList.add('active');
             await openChatInternal(Number(state.chatId));
         } else if (state.view === UI_VIEWS.MANUAL) {
-            findViewById('manual-view').style.display = 'flex';
-            findViewById('manual-view').classList.add('active');
+            manualView.style.display = 'flex';
+            manualView.classList.add('active');
         } else if (state.view === UI_VIEWS.FAKE) {
+            fakeApp.style.display = 'flex';
             initFakeModeInternal();
         }
 
+        // V40: Enhanced Modal Hierarchy Management
         if (state.modal) {
+            if (state.modal === UI_MODALS.ROOM_SETTINGS && state.chatId) {
+                // Ensure room is rendered behind the modal
+                roomView.style.display = 'flex';
+                roomView.classList.add('active');
+                await openChatInternal(Number(state.chatId));
+            }
+            
             if (state.modal === UI_MODALS.MEMO_LIST) {
                 initMemoInternal();
             } else if (state.modal === UI_MODALS.SETTINGS) {
                 openSettingsInternal();
+            } else if (state.modal === UI_MODALS.ROOM_SETTINGS) {
+                openRoomSettingsInternal();
             } else if (state.modal === UI_MODALS.ARCHIVED) {
                 renderArchivedList();
                 archivedModal.classList.remove('hidden');
@@ -526,6 +550,8 @@ async function applyState(state) {
                     console.warn('initGlobalCalendar is not ready yet');
                 }
                 findViewById(UI_MODALS.G_CAL).classList.remove('hidden');
+            } else if (state.modal === UI_MODALS.ABOUT) {
+                findViewById(UI_MODALS.ABOUT).classList.remove('hidden');
             } else {
                 const modal = findViewById(state.modal);
                 if (modal) modal.classList.remove('hidden');
@@ -533,10 +559,15 @@ async function applyState(state) {
         }
     } catch (e) {
         console.error('applyState error:', e);
-        // V30: Fail-safe recovery to List View
-        views.forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
-        listView.style.display = 'flex';
-        listView.classList.add('active');
+        // V30: Fail-safe recovery to List View using global views
+        views.forEach(v => {
+            v.style.display = 'none';
+            v.classList.remove('active');
+        });
+        if (listView) {
+            listView.style.display = 'flex';
+            listView.classList.add('active');
+        }
         alert('画面切り替え時にエラーが発生しましたが、一覧に復帰しました。');
     }
 }
@@ -1376,26 +1407,30 @@ function renderRoomSettingsMembers(senders) {
 if (roomSettingsBtn) {
     roomSettingsBtn.addEventListener('click', () => {
         if (!currentChat) return;
-        
-        roomSettingsTitle.value = currentChat.title;
-        const origFileSpan = document.getElementById('room-settings-original-file');
-        if (origFileSpan) {
-            origFileSpan.textContent = currentChat.originalFilename || '未設定';
-        }
-        
-        tempNameMap = {};
-        tempIconMap = Object.assign({}, currentChat.userIcons || {});
-        tempMainIconTarget = null;
-        
-        const sendersSet = new Set();
-        currentChat.messages.forEach(m => {
-            if (m.type === 'msg' && m.sender) sendersSet.add(m.sender);
-        });
-        const senders = Array.from(sendersSet);
-        
-        renderRoomSettingsMembers(senders);
-        roomSettingsModal.classList.remove('hidden');
+        pushViewState({ view: UI_VIEWS.ROOM, chatId: currentChatId, modal: UI_MODALS.ROOM_SETTINGS });
     });
+}
+
+function openRoomSettingsInternal() {
+    if (!currentChat) return;
+    roomSettingsTitle.value = currentChat.title;
+    const origFileSpan = document.getElementById('room-settings-original-file');
+    if (origFileSpan) {
+        origFileSpan.textContent = currentChat.originalFilename || '未設定';
+    }
+    
+    tempNameMap = {};
+    tempIconMap = Object.assign({}, currentChat.userIcons || {});
+    tempMainIconTarget = null;
+    
+    const sendersSet = new Set();
+    currentChat.messages.forEach(m => {
+        if (m.type === 'msg' && m.sender) sendersSet.add(m.sender);
+    });
+    const senders = Array.from(sendersSet);
+    
+    renderRoomSettingsMembers(senders);
+    roomSettingsModal.classList.remove('hidden');
 }
 
 const rsAddBtn = document.getElementById('room-settings-add-file-btn');
@@ -1410,7 +1445,7 @@ if (rsAddBtn && rsFileInput) {
         await openChat(currentChat.id); // 更新反映
     });
 }
-if (closeRoomSettingsModal) closeRoomSettingsModal.addEventListener('click', () => roomSettingsModal.classList.add('hidden'));
+if (closeRoomSettingsModal) closeRoomSettingsModal.addEventListener('click', () => history.back());
 
 if (roomSettingsApplyBtn) {
     roomSettingsApplyBtn.addEventListener('click', async () => {
@@ -1458,37 +1493,8 @@ if (roomSettingsApplyBtn) {
 if (roomSettingsExportBtn) {
     roomSettingsExportBtn.addEventListener('click', () => {
         if (!currentChat || !currentChat.messages) return;
-        const filename = prompt('保存するファイル名を入力してください（拡張子不要）', currentChat.title);
-        if (!filename) return;
-        
-        // Ensure strictly chronological order for export
-        const sortedMsgs = [...currentChat.messages].sort((a, b) => (a._timestamp || 0) - (b._timestamp || 0));
-        
-        let content = '';
-        let lastDate = '';
-        sortedMsgs.forEach(m => {
-            // Check for date change to insert parser-compatible date line
-            if (m.date && m.date !== lastDate) {
-                // Ensure format: YYYY/MM/DD(Ark)
-                content += `${m.date}(Ark)\n`;
-                lastDate = m.date;
-            }
-            
-            if (m.type === 'msg') {
-                content += `${m.time}\t${m.sender}\t${m.text.replace(/\n/g, '\\n')}\n`; // safe multiline representation if needed, but here we just restore tabs
-            } else if (m.type === 'sys') {
-                content += `${m.time}\t${m.text.replace(/\n/g, '\\n')}\n`;
-            }
-        });
-        
-        const blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('エクスポートが完了しました');
+        // V40: Branch to format selection modal instead of direct export
+        pushViewState({ view: UI_VIEWS.ROOM, chatId: currentChatId, modal: UI_MODALS.BACKUP_OPT });
     });
 }
 
@@ -1788,13 +1794,10 @@ async function initMemo(mode) {
         initFakeMode();
         return;
     }
-    
-    // V22: History API Support for Main Memo
     pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.MEMO_LIST });
 }
 
-// Actual initialization called by applyState
-async function initMemoInternal() {
+async function initMemoInternal(storageKey = 'arkive_memo_data', isFake = false) {
     const modal = document.getElementById('memo-modal');
     const indexView = document.getElementById('memo-index-view');
     const editView = document.getElementById('memo-edit-view');
@@ -1802,26 +1805,27 @@ async function initMemoInternal() {
     
     const indexList = document.getElementById('memo-index-list');
     const headerAddBtn = document.getElementById('memo-header-add-btn');
+    const headerEditBtn = document.getElementById('memo-header-edit-btn');
+    const headerDeleteBtn = document.getElementById('memo-header-delete-btn');
     const backBtn = document.getElementById('memo-back-btn');
     const closeBtn = document.getElementById('close-memo-modal-btn');
+    const memoTitleLabel = document.getElementById('memo-modal-title');
     
     const editTitle = document.getElementById('memo-edit-title');
     const editContent = document.getElementById('memo-edit-content');
     const saveBtn = document.getElementById('memo-save-btn');
-    const deleteBtn = document.getElementById('memo-delete-btn');
     
     const detailTitle = document.getElementById('memo-detail-title');
     const detailContentNode = document.getElementById('memo-detail-content');
-    const gotoEditBtn = document.getElementById('memo-goto-edit-btn');
     
-    const storageKey = 'arkive_memo_data';
     let currentMemos = [];
     let editingIdx = -1;
 
+    memoTitleLabel.textContent = isFake ? '秘密のメモ' : 'メインメモ';
+
     const switchView = (viewName) => {
         [indexView, editView, detailView].forEach(v => v.style.display = 'none');
-        backBtn.style.display = 'none';
-        closeBtn.style.display = 'none';
+        [headerAddBtn, headerEditBtn, headerDeleteBtn, backBtn, closeBtn].forEach(b => b.style.display = 'none');
         
         if (viewName === 'index') {
             indexView.style.display = 'block';
@@ -1831,11 +1835,11 @@ async function initMemoInternal() {
             editView.style.display = 'flex';
             editView.style.flexDirection = 'column';
             backBtn.style.display = 'flex';
-            headerAddBtn.style.display = 'none';
         } else if (viewName === 'detail') {
             detailView.style.display = 'block';
             backBtn.style.display = 'flex';
-            headerAddBtn.style.display = 'none';
+            headerEditBtn.style.display = 'flex';
+            headerDeleteBtn.style.display = 'flex';
         }
     };
 
@@ -1843,23 +1847,32 @@ async function initMemoInternal() {
         let raw = await LineChatDB.getSetting(storageKey, []);
         currentMemos = raw.map(m => {
             if (typeof m === 'string') return { title: m.substring(0, 15) || '無題', text: m, time: Date.now() };
-            if (m.text && !m.title) return { ...m, title: m.text.substring(0, 15) || '無題' };
             return m;
         });
         
         indexList.innerHTML = '';
         currentMemos.forEach((memo, idx) => {
             const card = document.createElement('div');
-            card.className = 'memo-card';
-            card.style.borderBottom = '1px solid var(--border-color)';
-            card.style.padding = '15px';
+            card.className = 'memo-card modal-list-item';
             card.style.cursor = 'pointer';
-            card.style.transition = 'background 0.2s';
             card.innerHTML = `
                 <h4 style="margin:0 0 5px 0;">${memo.title || '無題'}</h4>
                 <p style="margin:0; font-size:14px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${(memo.text || '').replace(/\n/g, ' ')}</p>
                 <div style="font-size:10px; color:var(--text-muted); margin-top:5px;">${new Date(memo.time || Date.now()).toLocaleString()}</div>
             `;
+            
+            // Delete via context menu
+            card.oncontextmenu = (e) => {
+                e.preventDefault();
+                if (confirm('このメモを削除しますか？')) {
+                    deleteMemoAt(idx);
+                }
+            };
+            // Long press support
+            let timer;
+            card.ontouchstart = () => { timer = setTimeout(() => { if (confirm('このメモを削除しますか？')) deleteMemoAt(idx); }, 800); };
+            card.ontouchend = () => clearTimeout(timer);
+
             card.onclick = () => {
                 editingIdx = idx;
                 detailTitle.textContent = memo.title;
@@ -1874,25 +1887,36 @@ async function initMemoInternal() {
         }
     };
 
-    // Listeners
+    const deleteMemoAt = async (idx) => {
+        currentMemos.splice(idx, 1);
+        await LineChatDB.setSetting(storageKey, currentMemos);
+        showToast('削除しました');
+        await loadMemos();
+        switchView('index');
+    };
+
     headerAddBtn.onclick = () => {
         editingIdx = -1;
         editTitle.value = '';
         editContent.value = '';
-        deleteBtn.style.display = 'none';
         switchView('edit');
+    };
+
+    headerEditBtn.onclick = () => {
+        const memo = currentMemos[editingIdx];
+        editTitle.value = memo.title || '';
+        editContent.value = memo.text || '';
+        switchView('edit');
+    };
+
+    headerDeleteBtn.onclick = () => {
+        if (confirm('このメモを完全に削除しますか？')) {
+            deleteMemoAt(editingIdx);
+        }
     };
 
     backBtn.onclick = () => switchView('index');
     closeBtn.onclick = () => history.back(); 
-
-    gotoEditBtn.onclick = () => {
-        const memo = currentMemos[editingIdx];
-        editTitle.value = memo.title || '';
-        editContent.value = memo.text || '';
-        deleteBtn.style.display = 'block';
-        switchView('edit');
-    };
 
     saveBtn.onclick = async () => {
         const t = editTitle.value.trim() || '無題';
@@ -1912,103 +1936,156 @@ async function initMemoInternal() {
         switchView('index');
     };
 
-    deleteBtn.onclick = async () => {
-        if (confirm('このメモを完全に削除しますか？')) {
-            currentMemos.splice(editingIdx, 1);
-            await LineChatDB.setSetting(storageKey, currentMemos);
-            showToast('削除しました');
-            await loadMemos();
-            switchView('index');
-        }
-    };
-
     modal.classList.remove('hidden');
     switchView('index');
     loadMemos();
 }
 
 async function initFakeMode() {
+    await LineChatDB.init();
+    window.dbReady = true;
     pushViewState({ view: UI_VIEWS.FAKE });
 }
 
+let isFakeMemoInitialized = false;
+
 async function initFakeModeInternal() {
-    const fakeApp = findViewById('fake-app');
-    const todoInput = findViewById('fake-todo-input');
-    const todoAddBtn = findViewById('fake-todo-add-btn');
-    const todoList = findViewById('fake-todo-list');
-    const backBtn = findViewById('fake-back-btn');
-    const memoBtn = findViewById('fake-memo-btn');
-    const todoView = findViewById('fake-todo-view');
-    const memoView = findViewById('fake-memo-view');
-    const memoTextarea = findViewById('fake-memo-textarea');
-    const memoBackBtn = findViewById('fake-memo-back-btn');
-    
+    if (!fakeApp) return;
     fakeApp.style.display = 'flex';
-    document.body.style.backgroundColor = '#fff';
+    document.body.style.backgroundColor = 'var(--bg-color)';
     
-    backBtn.onclick = () => location.reload(); 
-    memoBtn.onclick = () => {
-        todoView.style.display = 'none';
-        memoView.style.display = 'flex';
-    };
-    memoBackBtn.onclick = () => {
-        memoView.style.display = 'none';
-        todoView.style.display = 'flex';
+    const indexView = document.getElementById('fake-memo-index-view');
+    const editView = document.getElementById('fake-memo-edit-view');
+    const detailView = document.getElementById('fake-memo-detail-view');
+    
+    const indexList = document.getElementById('fake-memo-list');
+    const addBtn = document.getElementById('fake-memo-add-btn');
+    const fakeBackBtn = document.getElementById('fake-memo-back-btn');
+    const lockBtn = document.getElementById('fake-memo-lock-btn');
+    
+    const editTitle = document.getElementById('fake-memo-edit-title');
+    const editContent = document.getElementById('fake-memo-edit-content');
+    const saveBtn = document.getElementById('fake-memo-save-btn');
+    const deleteBtn = document.getElementById('fake-memo-delete-btn');
+    
+    const detailTitle = document.getElementById('fake-memo-detail-title');
+    const detailContentNode = document.getElementById('fake-memo-detail-content');
+    const gotoEditBtn = document.getElementById('fake-memo-goto-edit-btn');
+    
+    const storageKey = 'arkive_fake_memo_data';
+    let currentMemos = [];
+    let editingIdx = -1;
+
+    const switchView = (viewName) => {
+        if (!indexView || !editView || !detailView) return;
+        [indexView, editView, detailView].forEach(v => v.style.display = 'none');
+        if (fakeBackBtn) fakeBackBtn.style.display = 'none';
+        if (addBtn) addBtn.style.display = 'none';
+        if (lockBtn) lockBtn.style.display = 'none';
+        
+        if (viewName === 'index') {
+            indexView.style.display = 'block';
+            if (addBtn) addBtn.style.display = 'flex';
+            if (lockBtn) lockBtn.style.display = 'flex';
+        } else if (viewName === 'edit') {
+            editView.style.display = 'flex';
+            editView.style.flexDirection = 'column';
+            if (fakeBackBtn) fakeBackBtn.style.display = 'flex';
+        } else if (viewName === 'detail') {
+            detailView.style.display = 'block';
+            if (fakeBackBtn) fakeBackBtn.style.display = 'flex';
+        }
     };
 
-    const storageKey = 'arkive_fake_todo_data';
-    const memoKey = 'arkive_fake_secret_memo';
-    
-    const loadTodos = async () => {
-        const todos = await LineChatDB.getSetting(storageKey, []);
-        todoList.innerHTML = '';
-        todos.forEach((item, idx) => {
-            const li = document.createElement('li');
-            li.className = 'fake-todo-item';
-            li.innerHTML = `
-                <div style="display:flex; align-items:center; gap:12px; flex:1;">
-                    <input type="checkbox" ${item.done ? 'checked' : ''} style="width:22px; height:22px; cursor:pointer;">
-                    <span style="flex:1; text-decoration: ${item.done ? 'line-through' : 'none'}; color: ${item.done ? '#999' : '#333'}; font-size:17px; line-height:1.4;">${item.text}</span>
-                </div>
-                <button class="fake-todo-del" style="margin-left:10px; cursor:pointer;">削除</button>
+    const loadMemos = async () => {
+        if (!indexList) return;
+        let raw = await LineChatDB.getSetting(storageKey, []);
+        currentMemos = raw;
+        indexList.innerHTML = '';
+        currentMemos.forEach((memo, idx) => {
+            const card = document.createElement('div');
+            card.className = 'memo-card';
+            card.style.borderBottom = '1px solid var(--border-color)';
+            card.style.padding = '15px';
+            card.style.cursor = 'pointer';
+            card.innerHTML = `
+                <h4 style="margin:0 0 5px 0;">${memo.title || '無題'}</h4>
+                <p style="margin:0; font-size:14px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${(memo.text || '').replace(/\n/g, ' ')}</p>
+                <div style="font-size:10px; color:var(--text-muted); margin-top:5px;">${new Date(memo.time || Date.now()).toLocaleString()}</div>
             `;
-            const check = li.querySelector('input');
-            check.onchange = async () => {
-                todos[idx].done = check.checked;
-                await LineChatDB.setSetting(storageKey, todos);
-                loadTodos();
+            
+            // 長押しで削除確認
+            let pressTimer;
+            card.addEventListener('touchstart', (e) => {
+                pressTimer = setTimeout(() => {
+                    if(confirm('このメモを削除しますか？')) {
+                        currentMemos.splice(idx, 1);
+                        LineChatDB.setSetting(storageKey, currentMemos).then(loadMemos);
+                    }
+                }, 600);
+            }, {passive:true});
+            card.addEventListener('touchend', () => clearTimeout(pressTimer));
+
+            card.onclick = () => {
+                editingIdx = idx;
+                if (detailTitle) detailTitle.textContent = memo.title;
+                if (detailContentNode) detailContentNode.textContent = memo.text;
+                switchView('detail');
             };
-            li.querySelector('.fake-todo-del').onclick = async () => {
-                todos.splice(idx, 1);
-                await LineChatDB.setSetting(storageKey, todos);
-                loadTodos();
-            };
-            todoList.appendChild(li);
+            indexList.appendChild(card);
         });
-        if (todos.length === 0) todoList.innerHTML = '<div style="padding:40px; text-align:center; color:#ccc;">リストは空です</div>';
+        if (currentMemos.length === 0) indexList.innerHTML = '<div style="padding:50px; text-align:center; color:var(--text-muted);">秘密のメモはありません</div>';
     };
 
-    const loadMemo = async () => {
-        const memo = await LineChatDB.getSetting(memoKey, "");
-        memoTextarea.value = memo;
-    };
+    // 一回だけ実行する初期化
+    if (!isFakeMemoInitialized) {
+        if (addBtn) {
+            addBtn.onclick = () => {
+                editingIdx = -1;
+                if (editTitle) editTitle.value = '';
+                if (editContent) editContent.value = '';
+                if (deleteBtn) deleteBtn.style.display = 'none';
+                switchView('edit');
+            };
+        }
 
-    memoTextarea.oninput = async () => {
-        await LineChatDB.setSetting(memoKey, memoTextarea.value);
-    };
+        if (fakeBackBtn) fakeBackBtn.onclick = () => switchView('index');
+        if (lockBtn) lockBtn.onclick = () => location.reload();
 
-    todoAddBtn.onclick = async () => {
-        const val = todoInput.value.trim();
-        if (!val) return;
-        const todos = await LineChatDB.getSetting(storageKey, []);
-        todos.unshift({ text: val, done: false });
-        await LineChatDB.setSetting(storageKey, todos);
-        todoInput.value = '';
-        loadTodos();
-    };
 
-    loadTodos();
-    loadMemo();
+        if (saveBtn) {
+            saveBtn.onclick = async () => {
+                const t = editTitle ? editTitle.value.trim() || '無題' : '無題';
+                const c = editContent ? editContent.value.trim() : '';
+                if (!c && !t) return;
+                
+                const newMemo = { title: t, text: c, time: Date.now() };
+                if (editingIdx >= 0) currentMemos[editingIdx] = newMemo;
+                else currentMemos.unshift(newMemo);
+                
+                await LineChatDB.setSetting(storageKey, currentMemos);
+                if (typeof showToast === 'function') showToast('保存しました');
+                await loadMemos();
+                switchView('index');
+            };
+        }
+
+        if (deleteBtn) {
+            deleteBtn.onclick = async () => {
+                if (confirm('このメモを完全に削除しますか？')) {
+                    currentMemos.splice(editingIdx, 1);
+                    await LineChatDB.setSetting(storageKey, currentMemos);
+                    if (typeof showToast === 'function') showToast('削除しました');
+                    await loadMemos();
+                    switchView('index');
+                }
+            };
+        }
+        isFakeMemoInitialized = true;
+    }
+
+    switchView('index');
+    await loadMemos();
 }
 
 /**
@@ -2023,6 +2100,7 @@ function initGlobalFeatures() {
     findViewById('close-global-search-modal').onclick = () => history.back();
     findViewById('global-calendar-btn').onclick = () => pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.G_CAL });
     findViewById('close-global-calendar-modal').onclick = () => history.back();
+    findViewById('close-about-modal').onclick = () => history.back();
     
     const gSearchInput = findViewById('global-search-input');
     const gSearchResults = findViewById('global-search-results');
@@ -2031,11 +2109,11 @@ function initGlobalFeatures() {
     const gSearchDateE = findViewById('global-search-date-end');
     const gSearchMemberBtn = findViewById('global-search-member-btn');
     
-    let gSearchMemberFilter = new Set();
+    window.gSearchMemberFilter = new Set();
 
     const gSearchTotalHits = findViewById('global-search-total-hits');
 
-    const triggerGlobalSearch = async () => {
+    window.triggerGlobalSearch = async () => {
         const val = gSearchInput.value.trim().toLowerCase();
         if (val.length < 1) { 
             gSearchResults.innerHTML = ''; 
@@ -2057,7 +2135,7 @@ function initGlobalFeatures() {
 
         chats.forEach(chat => {
             chat.messages.forEach((m, idx) => {
-                if (window.matchMessage(m, includeTokens, excludeTokens, { dStart, dEnd, memberFilter: gSearchMemberFilter })) {
+                if (window.matchMessage(m, includeTokens, excludeTokens, { dStart, dEnd, memberFilter: window.gSearchMemberFilter })) {
                     hits.push({ chat, message: m, index: idx });
                     if (m.sender) window.currentGlobalHitSenders.add(m.sender);
                 }
@@ -2094,9 +2172,9 @@ function initGlobalFeatures() {
         gSearchResults.innerHTML = html || '<div style="text-align:center; padding:20px; color:var(--text-muted);">見つかりませんでした</div>';
     };
 
-    gSearchInput.oninput = triggerGlobalSearch;
-    gSearchDateS.onchange = triggerGlobalSearch;
-    gSearchDateE.onchange = triggerGlobalSearch;
+    gSearchInput.oninput = window.triggerGlobalSearch;
+    gSearchDateS.onchange = window.triggerGlobalSearch;
+    gSearchDateE.onchange = window.triggerGlobalSearch;
     gSearchSort.onclick = () => {
         const current = gSearchSort.getAttribute('data-sort');
         if (current === 'desc') {
@@ -2106,10 +2184,11 @@ function initGlobalFeatures() {
             gSearchSort.setAttribute('data-sort', 'desc');
             gSearchSort.textContent = '新しい順';
         }
-        triggerGlobalSearch();
+        window.triggerGlobalSearch();
     };
 
     gSearchMemberBtn.onclick = async () => {
+        window.isGlobalSearchFilterMode = true; // V40: Enable global mode
         const senders = window.currentGlobalHitSenders;
         if (senders.size === 0) {
             if (typeof showToast === 'function') showToast('検索結果がありません');
@@ -2119,33 +2198,16 @@ function initGlobalFeatures() {
         const filterList = document.getElementById('member-filter-list');
         filterList.innerHTML = '';
         
-        // Sort senders for better UX
         Array.from(senders).sort().forEach(name => {
             const label = document.createElement('label');
             label.style = "display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid #eee; font-size:16px; color:var(--text-main);";
-            const isChecked = gSearchMemberFilter.has(name) || gSearchMemberFilter.size === 0;
+            const isChecked = window.gSearchMemberFilter.has(name) || window.gSearchMemberFilter.size === 0;
             label.innerHTML = `<input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} style="width:20px; height:20px;"> <span style="flex:1;">${name}</span>`;
             filterList.appendChild(label);
         });
         
-        // Use existing member filter modal structure but redirect 'Apply' to global
         findViewById('member-filter-modal').classList.remove('hidden');
-        const applyBtn = findViewById('member-filter-apply');
-        const originalOnClick = applyBtn.onclick; 
-        
-        applyBtn.onclick = () => {
-            const checks = filterList.querySelectorAll('input');
-            gSearchMemberFilter.clear();
-            let allSelected = true;
-            checks.forEach(c => {
-                if (c.checked) gSearchMemberFilter.add(c.value);
-                else allSelected = false;
-            });
-            if (allSelected) gSearchMemberFilter.clear();
-            findViewById('member-filter-modal').classList.add('hidden');
-            applyBtn.onclick = originalOnClick; // Restore
-            triggerGlobalSearch();
-        };
+        // V40: Unified button handler in search.js will handle the click
     };
 
     // V23: Event Delegation for Global Search Results
@@ -2159,21 +2221,6 @@ function initGlobalFeatures() {
             openChat(card.dataset.id);
             findViewById('global-search-modal').classList.add('hidden');
         }
-    };
-
-    gSearchInput.oninput = triggerGlobalSearch;
-    gSearchDateS.onchange = triggerGlobalSearch;
-    gSearchDateE.onchange = triggerGlobalSearch;
-    gSearchSort.onclick = () => {
-        const cur = gSearchSort.getAttribute('data-sort');
-        if (cur === 'desc') {
-            gSearchSort.setAttribute('data-sort', 'asc');
-            gSearchSort.textContent = '古い順';
-        } else {
-            gSearchSort.setAttribute('data-sort', 'desc');
-            gSearchSort.textContent = '新しい順';
-        }
-        triggerGlobalSearch();
     };
 }
 
@@ -2258,5 +2305,12 @@ function initV21() {
     initGlobalFeatures();
     initSettingsAutoSave();
     initBackupHandlers();
+    
+    const verLabel = findViewById('settings-version-label');
+    if (verLabel) verLabel.textContent = `Ark-ive System Version ${APP_VERSION}`;
+    
+    document.getElementById('list-header-left')?.addEventListener('click', () => {
+        pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.ABOUT });
+    });
     document.getElementById('main-memo-btn')?.addEventListener('click', () => initMemo('main'));
 }

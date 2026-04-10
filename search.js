@@ -1,4 +1,5 @@
 window.searchKeyword = '';
+window.isGlobalSearchFilterMode = false; // V40: Track which search is using the member filter
 
 /**
  * V25 Shared Search Logic
@@ -236,14 +237,6 @@ function renderCalendar() {
         calGrid.appendChild(cell);
     }
 
-    // V36: Constant height (always 6 weeks = 42 cells)
-    const currentCells = firstDay + daysInMonth;
-    const remainingCells = 42 - currentCells;
-    for (let i = 0; i < remainingCells; i++) {
-        const blank = document.createElement('div');
-        blank.className = 'cal-cell cal-day_invalid';
-        calGrid.appendChild(blank);
-    }
     
     const totalCountNode = document.getElementById('cal-total-count');
     if (totalCountNode) {
@@ -380,19 +373,36 @@ const memberFilterList = document.getElementById('member-filter-list');
 const memberFilterApply = document.getElementById('member-filter-apply');
 const memberFilterAll = document.getElementById('member-filter-all');
 
+window.renderMemberFilter = (senders) => {
+    if (!memberFilterList) return;
+    memberFilterList.innerHTML = '';
+    
+    // Sort senders for better UX
+    const sortedSenders = Array.from(senders).sort();
+    
+    sortedSenders.forEach(name => {
+        const label = document.createElement('label');
+        label.style = "display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid var(--border-color); font-size:16px; color:var(--text-main);";
+        
+        let isChecked = false;
+        if (window.isGlobalSearchFilterMode) {
+            isChecked = !window.gSearchMemberFilter || window.gSearchMemberFilter.size === 0 || window.gSearchMemberFilter.has(name);
+        } else {
+            isChecked = searchMemberFilter.has(name) || searchMemberFilter.size === 0;
+        }
+        
+        label.innerHTML = `<input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} style="width:20px; height:20px;"> <span>${name}</span>`;
+        memberFilterList.appendChild(label);
+    });
+};
+
 memberFilterBtn.addEventListener('click', () => {
+    window.isGlobalSearchFilterMode = false; // V40: Enable individual mode
     if (!currentChat) return;
     const senders = new Set();
     currentChat.messages.forEach(m => { if(m.sender) senders.add(m.sender); });
     
-    memberFilterList.innerHTML = '';
-    senders.forEach(name => {
-        const label = document.createElement('label');
-        label.style = "display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid #eee; font-size:16px;";
-        const isChecked = searchMemberFilter.has(name) || searchMemberFilter.size === 0;
-        label.innerHTML = `<input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} style="width:20px; height:20px;"> <span>${name}</span>`;
-        memberFilterList.appendChild(label);
-    });
+    window.renderMemberFilter(Array.from(senders));
     memberFilterModal.classList.remove('hidden');
 });
 
@@ -404,16 +414,35 @@ memberFilterAll.addEventListener('click', () => {
 });
 memberFilterApply.addEventListener('click', () => {
     const checks = memberFilterList.querySelectorAll('input');
-    searchMemberFilter.clear();
-    let allSelected = true;
-    checks.forEach(c => {
-        if (c.checked) searchMemberFilter.add(c.value);
-        else allSelected = false;
-    });
-    // If everyone is selected, treat it as "no filter" (everything matches)
-    if (allSelected) searchMemberFilter.clear();
-    memberFilterModal.classList.add('hidden');
-    triggerSearch();
+    
+    if (window.isGlobalSearchFilterMode) {
+        // V40: Global Search Logic
+        if (!window.gSearchMemberFilter) window.gSearchMemberFilter = new Set();
+        window.gSearchMemberFilter.clear();
+        let allSelected = true;
+        let checkCount = 0;
+        checks.forEach(c => {
+            if (c.checked) {
+                window.gSearchMemberFilter.add(c.value);
+                checkCount++;
+            } else allSelected = false;
+        });
+        if (allSelected || checkCount === 0) window.gSearchMemberFilter.clear();
+        memberFilterModal.classList.add('hidden');
+        if (window.triggerGlobalSearch) window.triggerGlobalSearch();
+    } else {
+        // V40: Individual Search Logic
+        searchMemberFilter.clear();
+        let allSelected = true;
+        checks.forEach(c => {
+            if (c.checked) searchMemberFilter.add(c.value);
+            else allSelected = false;
+        });
+        // If everyone is selected, treat it as "no filter" (everything matches)
+        if (allSelected) searchMemberFilter.clear();
+        memberFilterModal.classList.add('hidden');
+        triggerSearch();
+    }
 });
 
 kwSearchNode.addEventListener('input', (e) => {

@@ -125,7 +125,14 @@ html, body {
 .add-btn { cursor: pointer; font-size: 24px; font-weight: 300; color: var(--primary-color); display: flex; align-items: center; justify-content: center; }
 .add-btn:hover { opacity: 0.8; }
 .back-btn { background: none; border: none; color: var(--text-main); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
-.icon-btn { background: none; border: none; color: var(--text-main); font-size: 20px; cursor: pointer; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; }
+.icon-btn { background: none; border: none; color: var(--text-main); font-size: 20px; cursor: pointer; min-height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; padding: 4px; }
+
+@media (max-width: 380px) {
+    #list-header-left { gap: 4px !important; }
+    #list-header-left h1 { font-size: 16px !important; }
+    .sticky-header { padding: 0 8px !important; }
+    .sticky-header div[style*="gap:2px"] { gap: 1px !important; }
+}
 
 .list-container, .room-container { 
     position: relative; flex: 1; height: auto;
@@ -194,9 +201,9 @@ html, body {
 .message-wrapper.received .bubble { background-color: var(--bubble-recv); border-bottom-left-radius: 4px; }
 
 /* Favorite Star */
-.favorite-star { position: absolute; top: -5px; color: #ffcc00; font-size: 14px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2)); }
-.message-wrapper.sent .favorite-star { left: -15px; }
-.message-wrapper.received .favorite-star { right: -15px; }
+.favorite-star { position: absolute; top: -3px; color: #ffcc00; font-size: 18px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2)); z-index: 5; }
+.message-wrapper.sent .favorite-star { left: -8px; }
+.message-wrapper.received .favorite-star { right: -8px; }
 
 .user-icon { 
     width: 32px; height: 32px; border-radius: 50%; background-color: var(--border-color); 
