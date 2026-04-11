@@ -7,20 +7,20 @@
     <title>Ark-ive</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#7494c0">
+    <meta name="theme-color" content="#06C755">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Ark-ive">
     <link rel="apple-touch-icon" href="./icon.jpg">
     <link rel="icon" href="./icon.jpg" type="image/jpeg">
 </head>
 
 <body>
-    <!-- V10 Passcode Lock Screen Redesign -->
     <div id="lock-screen" class="view"
         style="display: none; background-color: #f5f5f5; justify-content: center; align-items: center; z-index: 9999; padding-bottom: 30vh;">
         <form id="lock-form" style="text-align: center; color: #333; width: 100%; max-width: 400px; padding: 20px;" onsubmit="return false;">
-            <input type="password" id="passcode-input"
+            <input type="password" id="passcode-input" autocomplete="current-password"
                 style="width: 220px; padding: 15px; font-size: 28px; text-align: center; border-radius: 8px; border: 1px solid #ddd; outline: none; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); letter-spacing: 4px; color:#333; background:#fff;"
                 placeholder="">
             <br>
@@ -46,38 +46,58 @@
         </form>
     </div>
 
-    <!-- Main App Container -->
     <div id="main-app" style="display: none; height: 100%; flex-direction: column;">
         <div id="list-view" class="view active">
             <header class="sticky-header">
-                <div id="list-header-left" style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.ABOUT })">
-                    <img src="./icon.jpg" alt="Ark-ive" style="width:28px; height:28px; border-radius:6px; object-fit:cover;">
-                    <h1 style="font-size: 18px; margin:0; letter-spacing:1px;">Ark-ive</h1>
+                <div id="list-header-left" style="display:flex; align-items:center; gap:8px;">
+                    <img id="about-icon" src="./icon.jpg" alt="Ark-ive" style="width:28px; height:28px; border-radius:6px; object-fit:cover;">
+                    <h1 style="font-size: 18px; margin:0; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ark-ive</h1>
                 </div>
-                <div style="display:flex; gap:4px; align-items:center;">
-                    <button id="favorites-list-btn" class="icon-btn" title="お気に入り一覧（名言集）">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    </button>
-                    <button id="global-search-btn" class="icon-btn" title="全トーク検索">
+                <div style="display:flex; gap:2px; align-items:center;">
+                    <button id="global-search-btn" class="icon-btn" title="全トーク検索" data-i18n-title="TITLE_GLOBAL_SEARCH">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </button>
-                    <button id="global-calendar-btn" class="icon-btn" title="グローバルカレンダー">
+                    <button id="global-calendar-btn" class="icon-btn" title="グローバルカレンダー" data-i18n-title="TITLE_GLOBAL_CALENDAR">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4M8 2v4M3 10h18"/><text x="12" y="18" font-size="8" text-anchor="middle" font-family="Arial" stroke-width="1" fill="currentColor">31</text></svg>
                     </button>
-                    <button id="list-manual-btn" class="icon-btn" title="使い方マニュアル">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <button id="list-shuffle-btn" class="icon-btn" title="ランダムジャンプ" data-i18n-title="TITLE_RANDOM_JUMP">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
                     </button>
-                    <button id="main-memo-btn" class="icon-btn" title="メインメモ">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    <button id="list-kebab-btn" class="icon-btn" title="メニュー" data-i18n-title="TITLE_MENU">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
                     </button>
-                    <label class="add-btn" title="トークを読み込む">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        <input type="file" id="file-input" accept=".txt" style="display: none;" multiple>
-                    </label>
-                    <button id="settings-btn" class="icon-btn" title="設定"
-                        style="color:#777; font-size:20px; background:none; border:none; padding:0;">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                    </button>
+
+                    <div id="list-kebab-dropdown" class="dropdown-menu hidden">
+                        <label class="dropdown-item" title="トークを読み込む" style="margin:0;">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <span data-i18n="MENU_IMPORT">トーク読み込み</span>
+                            <input type="file" id="file-input" accept=".txt" style="display: none;" multiple>
+                        </label>
+                        <div id="favorites-list-btn" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            <span>お気に入り一覧</span>
+                        </div>
+                        <div id="list-archive-btn" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                            <span>アーカイブ一覧</span>
+                        </div>
+                        <div id="main-memo-btn" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            <span>メモ</span>
+                        </div>
+                        <div id="global-ranking-btn" class="dropdown-item" title="集計" style="color:var(--primary-color);">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                            <span data-i18n="MENU_RANKING">単語ランキング</span>
+                        </div>
+                        <div id="list-manual-btn" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            <span>マニュアル</span>
+                        </div>
+                        <div id="settings-btn" class="dropdown-item">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            <span>設定</span>
+                        </div>
+                    </div>
                 </div>
             </header>
             <div id="chat-list" class="list-container"></div>
@@ -93,13 +113,15 @@
                         <span id="room-icon-text"></span>
                     </div>
                     <h1 id="room-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 16px; margin-left: 2px;">トークルーム</h1>
-                    <!-- 検索バーはフルスクリーンモーダルに移動済 -->
                 </div>
                 <div style="display:flex; align-items:center; gap: 5px;">
                     <div class="date-jump-container" style="display:flex; align-items:center; cursor:pointer;" onclick="document.getElementById('date-btn').click();" title="日付ジャンプ">
                         <span id="scroll-date-label" style="font-size:12px; margin-right:4px; white-space:nowrap; color:var(--text-main); font-weight:bold;">----/--/--</span>
                         <button id="date-btn" style="display:none;"></button>
                     </div>
+                    <button id="room-ranking-btn" class="icon-btn" title="単語ランキング">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    </button>
                     <button id="search-toggle-btn" class="icon-btn" title="検索" style="min-width: 32px; min-height: 32px;">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </button>
@@ -108,6 +130,9 @@
                     </button>
                     <button id="flip-btn" class="icon-btn" title="自分側切替" style="min-width: 32px; min-height: 32px;">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4L4 8l4 4M4 8h16M16 20l4-4-4-4M20 16H4"/></svg>
+                    </button>
+                    <button id="room-shuffle-btn" class="icon-btn" title="ルーム内ジャンプ">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
                     </button>
                     <button id="room-settings-btn" class="icon-btn" title="トーク設定" style="min-width: 32px; min-height: 32px;">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -126,20 +151,18 @@
                 <div id="virtual-spacer" class="virtual-spacer"></div>
                 <div id="message-list" class="message-list"></div>
             </div>
-            <!-- Hidden inputs used by JS -->
             <input type="file" id="room-file-input" accept=".txt" style="display: none;" multiple>
             <input type="file" id="icon-input" accept="image/*" style="display: none;">
         </div>
     </div>
 
-    <!-- Date Calendar Modal -->
     <div id="date-modal" class="modal hidden">
         <div class="modal-content fullscreen">
             <div class="modal-header">
                 <h3>日付ジャンプ</h3>
                 <button id="close-date-modal" class="close-btn">×</button>
             </div>
-            <div id="calendar-container" class="calendar-container">
+            <div id="calendar-container" class="calendar-container scroll-content">
                 <div id="calendar-header-main" class="calendar-header sticky-cal-header">
                     <button id="cal-prev-btn" class="nav-btn" style="color:#333;">◀</button>
                     <div style="display:flex; flex-direction:column; align-items:center;">
@@ -154,7 +177,6 @@
         </div>
     </div>
 
-    <!-- Global Search Modal -->
     <div id="global-search-modal" class="modal hidden" style="z-index: 2000;">
         <div class="modal-content fullscreen">
             <div class="modal-header">
@@ -162,6 +184,10 @@
                 <button id="close-global-search-modal" class="close-btn">×</button>
             </div>
             <div class="modal-body" style="padding:15px; display:flex; flex-direction:column; height:calc(100% - 60px);">
+                <div class="search-mode-toggle" id="global-search-mode-toggle" style="margin-bottom:10px;">
+                    <button class="mode-btn active" data-mode="AND">AND</button>
+                    <button class="mode-btn" data-mode="OR">OR</button>
+                </div>
                 <input type="text" id="global-search-input" placeholder="全てのトークから検索..." style="width:100%; padding:15px; border-radius:25px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:16px; margin-bottom:10px; box-sizing:border-box; outline:none;">
                 <div id="global-search-config" style="display:flex; justify-content:space-between; align-items:center; font-size:14px; gap:8px; margin-bottom:15px;">
                     <button id="global-search-member-btn" class="icon-btn" style="min-width:32px; min-height:32px; background:var(--surface-color); border:1px solid var(--border-color); border-radius:50%;" title="発言者フィルター">
@@ -179,15 +205,14 @@
         </div>
     </div>
 
-    <!-- Global Calendar Modal -->
     <div id="global-calendar-modal" class="modal hidden" style="z-index: 2000;">
         <div class="modal-content fullscreen">
             <div class="modal-header">
-                <h3>グローバルカレンダー</h3>
+                <h3>トーク数/通話時間</h3>
                 <button id="close-global-calendar-modal" class="close-btn">×</button>
             </div>
             <div id="global-calendar-container" class="calendar-container scroll-content">
-                <div class="calendar-header sticky-cal-header" style="padding:15px 0;">
+                <div class="calendar-header sticky-cal-header" id="global-calendar-header-main" style="padding:15px 0;">
                     <button id="global-cal-prev-btn" class="nav-btn">◀</button>
                     <div style="text-align:center;">
                         <div id="global-cal-month-label" style="font-weight:bold; font-size:18px; cursor:pointer;"></div>
@@ -201,23 +226,21 @@
         </div>
     </div>
 
-    <!-- Backup Options Modal -->
     <div id="backup-options-modal" class="modal hidden" style="z-index: 3000;">
         <div class="modal-content" style="height:auto; max-height:80vh;">
             <div class="modal-header">
-                <h3>バックアップ形式の選択</h3>
+                <h3>バックアップするデータを選択</h3>
                 <button id="close-backup-options-modal" class="close-btn">×</button>
             </div>
             <div style="padding:20px; display:flex; flex-direction:column; gap:12px;">
-                <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">出力するファイル形式を選択してください。</div>
-                <button id="backup-opt-json" class="btn-primary" style="padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">① 暗号化して保存 (.json)</button>
-                <button id="backup-opt-txt" class="btn-outline" style="padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">② 暗号化なしで保存 (.txt)</button>
+                <p style="font-size:14px; color:var(--text-muted); line-height:1.4; margin-bottom:10px;">バックアップする内容を選択してください。</p>
+                <button id="backup-opt-all" class="btn-primary" style="padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">全てバックアップ（トーク＋メモ＋アプリ設定）</button>
+                <button id="backup-opt-chats" class="btn-outline" style="padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">トーク履歴のみバックアップ</button>
                 <button id="backup-opt-cancel" style="padding:12px; background:none; border:none; color:var(--text-muted); cursor:pointer;">キャンセル</button>
             </div>
         </div>
     </div>
 
-    <!-- Manual Independent View -->
     <div id="manual-view" class="view" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:5000; background:var(--bg-color); flex-direction:column;">
         <header class="sticky-header">
             <div style="display:flex; align-items:center; gap:10px;">
@@ -251,18 +274,21 @@
             </section>
             <section style="margin-bottom:30px;">
                 <h3 style="border-left:4px solid var(--primary-color); padding-left:10px; margin-bottom:15px;">5. 偽画面（カモフラージュ）</h3>
-                <p>設定から「偽パスコード」を設定し、そのパスコードでログインすると「お買い物リスト」が表示されます。さらに偽画面専用のメモ機能も搭載されており、本物のデータとは完全に独立した鍵で保護されます。</p>
+                <p>設定から「偽パスコード」を設定し、そのパスコードでログインするとカモフラージュ画面が表示されます。さらに内部には専用のメモ機能も搭載されており、本物のデータとは完全に独立した鍵で保護されます。</p>
             </section>
         </div>
     </div>
 
-    <!-- Search Result Modal (Fullscreen View) -->
     <div id="search-modal" class="modal hidden" style="z-index: 1001;">
         <div class="modal-content" style="height: 100%; max-height: 100%; border-radius: 0; display: flex; flex-direction: column; width: 100%; margin: 0;">
             <div class="modal-header" style="flex-direction: column; align-items: stretch; gap: 10px; padding: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3>検索結果 (<span id="search-total-hits">0</span>件)</h3>
                     <button id="close-search-modal" class="close-btn" style="padding: 0; min-height: auto;">×</button>
+                </div>
+                <div class="search-mode-toggle" id="search-mode-toggle">
+                    <button class="mode-btn active" data-mode="AND">AND</button>
+                    <button class="mode-btn" data-mode="OR">OR</button>
                 </div>
                 <div id="search-input-wrapper" style="position: relative; width: 100%;">
                     <input type="text" id="keyword-search" placeholder="キーワード検索..." style="padding: 12px 15px; border-radius: 20px; border: 1px solid var(--border-color); width: 100%; font-size: 16px; background: var(--bg-color); color: var(--text-main); box-sizing: border-box; outline: none;">
@@ -284,7 +310,6 @@
         </div>
     </div>
 
-    <!-- V17 Settings Modal (Fully Independent) -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content fullscreen">
             <div class="modal-header">
@@ -303,6 +328,13 @@
                             <option value="pop">ポップ風</option>
                         </select>
                     </div>
+                    <div class="settings-label">
+                        <span data-i18n="SETTING_LANG">Language</span>
+                        <select id="lang-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); font-size:14px;">
+                            <option value="ja">日本語</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="settings-section">
@@ -316,68 +348,56 @@
                         パスコードを忘れると、保存されているすべてのトーク履歴やメモは復元不可能になります。セキュリティ上、サーバーへの保存やバックアップは一切行っておりません。
                     </div>
 
-                    <form id="password-setup-container" style="display:none; margin-top:20px;" onsubmit="return false;">
-                        <span style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;">メイン（本物）のパスコード</span>
-                        <input type="password" id="new-password" placeholder="新しい本物のパスコード"
-                            style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; font-size:16px; margin-bottom:12px; box-sizing:border-box; background:var(--bg-color); color:var(--text-main);">
-                        <input type="password" id="confirm-password" placeholder="確認用入力"
-                            style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; font-size:16px; margin-bottom:20px; box-sizing:border-box; background:var(--bg-color); color:var(--text-main);">
-                        
-                        <div class="settings-label" style="margin-bottom:15px; padding:0;">
-                            <span style="font-size:14px;">偽パスコード（ダミー）を有効にする</span>
-                            <input type="checkbox" id="fake-password-toggle" style="width:20px; height:20px;">
-                        </div>
-
-                        <div id="fake-password-inputs" style="display:none; padding-left:15px; border-left:2px solid var(--border-color);">
-                            <span style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;">ダミーパスコードの設定</span>
-                            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">※このパスコードでログインすると「お買い物リスト」が表示されます。</div>
-                            <input type="password" id="fake-password" placeholder="偽のパスコード"
-                                style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; font-size:16px; margin-bottom:12px; box-sizing:border-box; background:var(--bg-color); color:var(--text-main);">
-                            <input type="password" id="confirm-fake-password" placeholder="偽パスコードの確認"
-                                style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; font-size:16px; margin-bottom:20px; box-sizing:border-box; background:var(--bg-color); color:var(--text-main);">
+                    <div id="password-setup-container" style="display:none; margin-top:20px; padding:15px; background:var(--surface-hover); border-radius:12px;">
+                        <h4 style="margin-bottom:15px; font-size:14px;">メインパスコードを設定</h4>
+                        <form onsubmit="return false;" style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px; margin-top:0;">
+                            <input type="password" id="new-password" autocomplete="new-password" placeholder="新しいパスコード" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main);">
+                            <input type="password" id="confirm-password" autocomplete="new-password" placeholder="確認用" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main);">
+                        </form>
+                        <div id="main-pass-error" class="pass-error-text">パスコードが一致していません</div>
+                        <div style="display:flex; justify-content:flex-end;">
+                            <button id="apply-main-pass-btn" class="apply-btn">メインを適用・再暗号化</button>
                         </div>
                         
-                        <button type="submit" id="save-password-btn"
-                            style="width:100%; padding:14px; background:#00B900; color:white; border:none; border-radius:12px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:10px;">設定を保存して有効化</button>
-                    </form>
-                </div>
-
-                <div class="settings-section">
-                    <button id="archive-view-btn" style="width: 100%; padding: 15px; background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span>アーカイブ済みトークの管理</span>
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path><line x1="10" y1="12" x2="14" y2="12"></line></svg>
-                    </button>
-                    
-                </div>
-
-                <div class="settings-section">
-                    <div style="font-weight:bold; font-size:14px; color:var(--text-muted); margin-bottom:15px;">データの一括バックアップ・復元</div>
-                    <div style="margin-bottom:20px;">
-                        <input type="text" id="backup-filename" placeholder="バックアップファイル名" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:14px; margin-bottom:12px;">
-                        <label style="display:flex; align-items:center; gap:10px; font-size:13px; cursor:pointer;">
-                            <input type="checkbox" id="backup-encrypt-toggle" checked>
-                            <span>暗号化キーを維持したまま保存 (推奨)</span>
-                        </label>
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:15px; margin-bottom:10px; padding:15px 0 0; border-top:1px solid var(--border-color);">
+                            <label for="fake-password-toggle" style="font-size:14px;">偽パスコードを設定</label>
+                            <input type="checkbox" id="fake-password-toggle">
+                        </div>
+                        
+                        <div id="fake-password-inputs" style="display:none; margin-top:10px;">
+                            <form onsubmit="return false;" style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px; margin-top:0;">
+                                <input type="password" id="fake-password" autocomplete="new-password" placeholder="新しい偽パスコード" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main);">
+                                <input type="password" id="confirm-fake-password" autocomplete="new-password" placeholder="確認用" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main);">
+                            </form>
+                            <div id="fake-pass-error" class="pass-error-text">パスコードが一致していません</div>
+                            <div style="display:flex; justify-content:flex-end;">
+                                <button id="apply-fake-pass-btn" class="apply-btn">偽パスを保存</button>
+                            </div>
+                        </div>
                     </div>
+                </div>
 
-                    <div style="display:flex; gap:12px;">
-                        <button id="backup-btn" style="flex:1; padding:15px; background:var(--primary-color); color:white; border:none; border-radius:12px; font-size:14px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>全データ出力
+
+                <div class="settings-section">
+                    <h4 style="margin-bottom:15px; font-size:14px;">バックアップと復元</h4>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <button id="backup-db-btn" style="width:100%; padding:12px; background:var(--surface-color); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; font-size:14px; cursor:pointer; font-weight:bold;">
+                            JSONバックアップ (全データ)
                         </button>
-                        <button id="restore-btn" style="flex:1; padding:15px; background:var(--surface-color); color:var(--text-main); border:1px solid var(--border-color); border-radius:12px; font-size:14px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>バックアップ読込
+                        <button id="restore-db-btn" style="width:100%; padding:12px; background:var(--surface-color); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; font-size:14px; cursor:pointer; font-weight:bold;">
+                            JSONを復元 (全上書き)
                         </button>
                         <input type="file" id="restore-input" accept=".json" style="display:none;">
                     </div>
                 </div>
                 
                 <div id="settings-version-label" style="text-align: center; margin: 40px 0 20px; font-size: 12px; color: var(--text-muted); letter-spacing: 1px;">
-                    Ark-ive System Version v21.0.0
+                    Ark-ive System Version v1.1.20
                 </div>
             </div>
         </div>
     </div>
-    <!-- Manual Modal -->
+
     <div id="manual-modal" class="modal hidden">
         <div class="modal-content" style="height: 85vh;">
             <div class="modal-header">
@@ -398,14 +418,29 @@
             </div>
         </div>
     </div>
-    <!-- V5 Tooltip -->
     <div id="longpress-tooltip" class="longpress-tooltip hidden"></div>
 
-    <!-- V11 Context Menu & Toast & Icon Setup Modal -->
     <div id="context-menu">
-        <div class="context-item" id="ctx-add"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 追加読み込み</div>
-        <div class="context-item" id="ctx-rename"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg> 名前の変更</div>
-        <div class="context-item danger" id="ctx-delete"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 削除</div>
+        <div class="context-item" id="ctx-copy" title="テキストをコピー">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>コピー</span>
+        </div>
+        <div class="context-item" id="ctx-fav-toggle" title="お気に入り登録/解除">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <span>お気に入り</span>
+        </div>
+        <div class="context-item" id="ctx-rename" title="名前を変更">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <span>名前変更</span>
+        </div>
+        <div class="context-item danger" id="ctx-delete" title="削除">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>削除</span>
+        </div>
+        <div class="context-item" id="ctx-add" title="追記読み込み">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>追記読込</span>
+        </div>
     </div>
     <div id="toast" class="toast"></div>
 
@@ -419,261 +454,288 @@
         </div>
     </div>
 
-    <!-- Individual Room Settings Modal -->
     <div id="room-settings-modal" class="modal hidden">
         <div class="modal-content" style="height: auto; max-height: 85vh;">
             <div class="modal-header">
-                <h3>トーク設定</h3>
-                <button id="close-room-settings-modal" class="close-btn" style="min-width:auto; padding:0;">×</button>
+                <h3>トーク個別設定</h3>
+                <button id="close-room-settings-modal" class="close-btn">×</button>
             </div>
-            <div style="padding: 20px; overflow-y: auto;">
-                <label style="display:block; margin-bottom:15px;">
-                    <span style="font-weight:bold; font-size:14px; color:var(--text-muted); display:block; margin-bottom:5px;">トークルーム名</span>
-                    <input type="text" id="room-settings-title" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); font-size:14px;" box-sizing:border-box;>
-                </label>
-                
-                <div style="margin-bottom:15px; font-size:14px; color:var(--text-muted);">
-                    元ファイル: <span id="room-settings-original-file" style="font-weight:bold; color:var(--text-main);">未設定</span>
+            <div class="modal-body scroll-content" style="padding: 15px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 12px; color: var(--text-muted);">トークルーム名</label>
+                    <input type="text" id="room-settings-title" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); font-size: 16px; margin-top: 5px;">
                 </div>
-                <div style="margin-bottom:15px;">
-                    <button id="room-settings-add-file-btn" style="width:100%; padding:10px; background:var(--surface-color); color:var(--primary-color); border:1px solid var(--border-color); border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">
-                        ＋ 追加のトーク履歴を読み込む
-                    </button>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 12px; color: var(--text-muted);">元ファイル: <span id="room-settings-original-file"></span></label>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h4 style="font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">メンバーとアイコン設定</h4>
+                    <div id="room-settings-members"></div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button id="room-settings-add-file-btn" class="btn-outline" style="flex: 1; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 14px; color: var(--primary-color); border: 1px solid var(--primary-color); background: transparent;">＋ 追加読み込み</button>
                     <input type="file" id="room-settings-file-input" accept=".txt" style="display: none;" multiple>
+                    <button id="room-settings-apply-btn" class="apply-btn" style="flex: 1; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 14px; background: var(--primary-color); color: white; border: none;">設定を保存</button>
                 </div>
-                
-                <div style="margin-bottom:15px;">
-                    <span style="font-weight:bold; font-size:14px; color:var(--text-muted); display:block; margin-bottom:5px;">参加メンバー設定 (名前・アイコン)</span>
-                    <div id="room-settings-members" style="border:1px solid var(--border-color); border-radius:8px; padding:10px; background:var(--surface-color);">
-                        <!-- メンバーごとの名前変更・アイコン変更UIが動的に生成される -->
-                    </div>
-                </div>
-
-                <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button id="room-settings-export-btn" style="flex:1; padding:12px; background:var(--surface-hover); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>バックアップ
-                    </button>
-                    <button id="room-settings-apply-btn" style="flex:1; padding:12px; background:#00B900; color:white; border:none; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">適用</button>
+                <div style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <button id="room-settings-export-btn" style="width: 100%; padding: 12px; background: var(--surface-color); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold; margin-bottom: 10px;">バックアップ</button>
                 </div>
             </div>
         </div>
     </div>
 
-
-
-    <!-- Merge Mapping Modal -->
-    <div id="merge-mapping-modal" class="modal hidden">
-        <div class="modal-content" style="height: auto; max-height: 85vh;">
-            <div class="modal-header">
-                <h3>名前割り当て・統合</h3>
-                <button id="close-merge-mapping-modal" class="close-btn">×</button>
-            </div>
-            <div style="padding: 15px; overflow-y: auto;">
-                <label style="display:block; margin-bottom:15px;">
-                    <span style="font-weight:bold; font-size:14px; color:var(--text-muted); display:block; margin-bottom:5px;">インポートするトークルーム名</span>
-                    <input type="text" id="import-mapping-title" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); font-size:14px;" box-sizing:border-box;>
-                </label>
-                <p style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">追加するファイル内の発言者名をどう扱うか指定してください。既存にある場合は選択できます。テキスト入力で任意の名前に変更することも可能です（予定）。</p>
-                <div id="merge-mapping-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-                <button id="merge-mapping-apply-btn" style="width:100%; padding:12px; background:#00B900; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:20px;">この設定で読み込む</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- V12 New Modals -->
-    <!-- About Modal -->
-    <div id="about-modal" class="modal hidden">
-        <div class="modal-content" style="height: auto; max-height: 85vh;">
-            <div class="modal-header">
-                <h3>About Ark-ive</h3>
-                <button id="close-about-modal" class="close-btn">×</button>
-            </div>
-            <div style="padding: 24px; overflow-y: auto; line-height: 1.8; font-size: 15px; color: var(--text-main);">
-                <div style="text-align: center; margin-bottom: 25px;">
-                    <img src="./icon.jpg" style="width: 80px; height: 80px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    <h2 style="margin-top: 10px; font-size: 22px;">Ark-ive</h2>
-                </div>
-                <p>Ark-ive（アーカイヴ）へようこそ。ここは様々なアプリの記憶を統合し、未来へ残すための場所です。</p>
-                <div style="margin-top: 15px; padding: 18px; background: var(--surface-hover); border-radius: 12px; border-left: 5px solid var(--primary-color); line-height: 1.8;">
-                    <strong>【洪水から言葉を守る方舟】</strong><br>
-                    かつてノアの方舟が、大洪水からあらゆる生命を守り抜いた逸話のように。<br>
-                    デジタル空間においても、機種変更やアプリの削除、予期せぬトラブルという「情報の洪水」が、あなたの大切な記憶を押し流そうとしています。<br><br>
-                    Ark-iveは、散らばったトーク履歴を一箇所に集め、大切に保管する「方舟」となるために生まれました。あの日交わした何気ない言葉、忘れられない名言、共に歩んだ時間の記録を、時代の波に飲まれることなく未来へと運び、いつでも読み返せるようにし続けます。
-                </div>
-                <p style="margin-top: 15px;">
-                    形式の異なるチャットログを一つの美しいタイムラインとして整理する。Ark-iveは、あなたの人生の大切な断片を次世代へと繋ぐための記録保管庫です。
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Favorites (名言集) Modal -->
-    <div id="favorites-modal" class="modal hidden">
-        <div class="modal-content" style="height: 100vh; max-height: 100vh; border-radius: 0;">
-            <div class="modal-header">
-                <h3>☆ 名言集（お気に入り）</h3>
-                <button id="close-favorites-modal" class="close-btn">×</button>
-            </div>
-            <div id="favorites-list" class="modal-list" style="padding: 10px;"></div>
-        </div>
-    </div>
-
-    <!-- V17 Memo Modal (Independent View Logic) -->
-    <div id="memo-modal" class="modal hidden">
-        <div class="modal-content fullscreen">
-            <!-- Header (Dynamic based on View) -->
-            <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:10px; width:100%; justify-content:space-between;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <button id="memo-back-btn" class="back-btn" style="display:none;" title="戻る">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                        </button>
-                        <h3 id="memo-modal-title">メインメモ</h3>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <button id="memo-header-add-btn" class="icon-btn" style="display:flex; color:var(--primary-color);" title="新規追加">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        </button>
-                        <button id="memo-header-edit-btn" class="icon-btn" style="display:none;" title="編集">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                        </button>
-                        <button id="memo-header-delete-btn" class="icon-btn" style="display:none; color:var(--delete-bg);" title="削除">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        </button>
-                        <button id="close-memo-modal-btn" class="close-btn" title="閉じる">×</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- View 1: List View (Index) -->
-            <div id="memo-index-view" class="scroll-content">
-                <div id="memo-index-list"></div>
-            </div>
-
-            <!-- View 2: Add/Edit View -->
-            <div id="memo-edit-view" class="scroll-content" style="display:none;">
-                <input type="text" id="memo-edit-title" placeholder="タイトルを入力" style="width:100%; padding:15px; font-size:20px; font-weight:bold; border:none; border-bottom:1px solid var(--border-color); background:transparent; color:var(--text-main); outline:none; margin-bottom:20px;">
-                <textarea id="memo-edit-content" placeholder="メモの内容を入力..." style="width:100%; flex:1; padding:15px; font-size:16px; border:none; background:transparent; color:var(--text-main); outline:none; resize:none; min-height:300px;"></textarea>
-                
-                <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button id="memo-delete-btn" style="padding:15px 25px; background:var(--delete-bg); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer; display:none;">削除</button>
-                    <button id="memo-save-btn" style="flex:1; padding:15px; background:var(--primary-color); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">保存する</button>
-                </div>
-            </div>
-
-            <!-- View 3: Detail View -->
-            <div id="memo-detail-view" class="scroll-content" style="display:none;">
-                <h2 id="memo-detail-title" style="margin-bottom:20px; font-size:24px;"></h2>
-                <div id="memo-detail-content" class="memo-detail-content"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Archived Chats Modal -->
-    <div id="archived-modal" class="modal hidden">
-        <div class="modal-content fullscreen">
-            <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <button id="close-archived-modal" class="back-btn" style="min-width:32px; min-height:32px;">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                    </button>
-                    <h3>アーカイブ済みトーク</h3>
-                </div>
-            </div>
-            <div id="archived-list" class="list-container"></div>
-        </div>
-    </div>
-
-    <!-- Member Filter Modal (for Search) -->
-    <div id="member-filter-modal" class="modal hidden" style="z-index: 1002;">
-        <div class="modal-content" style="height: auto; max-height: 70vh;">
+    <div id="member-filter-modal" class="modal hidden" style="z-index:9000;">
+        <div class="modal-content" style="height:auto; max-height:80vh;">
             <div class="modal-header">
                 <h3>発言者フィルター</h3>
                 <button id="close-member-filter-modal" class="close-btn">×</button>
             </div>
-            <div id="member-filter-list" class="modal-list" style="padding: 20px;"></div>
-            <div style="padding: 15px; border-top: 1px solid var(--border-color); display: flex; gap: 10px;">
-                <button id="member-filter-all" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main);">全選択/解除</button>
-                <button id="member-filter-apply" style="flex:1; padding:10px; border-radius:8px; border:none; background:var(--primary-color); color:white; font-weight:bold;">適用</button>
+            <div id="member-filter-list" class="modal-list" style="padding:5px;"></div>
+            <div style="padding:15px; border-top:1px solid var(--border-color); display:flex; gap:10px;">
+                <button id="member-filter-clear-btn" style="flex:1; padding:12px; border-radius:12px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); cursor:pointer;">全解除</button>
+                <button id="member-filter-apply-btn" style="flex:1; padding:12px; border-radius:12px; border:none; background:var(--primary-color); color:white; font-weight:bold; cursor:pointer;">適用</button>
             </div>
         </div>
     </div>
 
-    <!-- V17 Fake App (Shopping List CRUD) -->
-    <div id="fake-app" class="view" style="display: none; background: var(--bg-color); flex-direction:column; height:100%;">
-        <header class="sticky-header">
-            <div style="display:flex; align-items:center; gap:10px; width:100%; justify-content:space-between;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <button id="fake-memo-back-btn" class="back-btn" style="display:none;" title="戻る">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                    </button>
-                    <h1 style="font-size: 18px; margin:0;">秘密のメモ</h1>
-                </div>
-                <div style="display:flex; align-items:center; gap:5px;">
-                    <button id="fake-memo-add-btn" class="icon-btn" style="color:var(--primary-color);" title="新規追加">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    </button>
-                    <button id="fake-memo-lock-btn" class="icon-btn" title="ロック画面に戻る">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                    </button>
-                </div>
-            </div>
-        </header>
-        
-        <div id="fake-memo-index-view" class="scroll-content">
-            <div id="fake-memo-list"></div>
-        </div>
-    
-        <div id="fake-memo-edit-view" class="scroll-content" style="display:none;">
-            <input type="text" id="fake-memo-edit-title" placeholder="タイトルを入力" style="width:100%; padding:15px; font-size:20px; font-weight:bold; border:none; border-bottom:1px solid var(--border-color); background:transparent; color:var(--text-main); outline:none; margin-bottom:20px;">
-            <textarea id="fake-memo-edit-content" placeholder="メモの内容を入力..." style="width:100%; flex:1; padding:15px; font-size:16px; border:none; background:transparent; color:var(--text-main); outline:none; resize:none; min-height:300px;"></textarea>
-            
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button id="fake-memo-delete-btn" style="padding:15px 25px; background:var(--delete-bg); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer; display:none;">削除</button>
-                <button id="fake-memo-save-btn" style="flex:1; padding:15px; background:var(--primary-color); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">保存する</button>
-            </div>
-        </div>
-    
-        <div id="fake-memo-detail-view" class="scroll-content" style="display:none;">
-            <h2 id="fake-memo-detail-title" style="margin-bottom:20px; font-size:24px;"></h2>
-            <div id="fake-memo-detail-content" class="memo-detail-content" style="white-space:pre-wrap; line-height:1.6;"></div>
-            <button id="fake-memo-goto-edit-btn" class="fab" style="background:var(--primary-color); position:fixed; bottom:30px; right:30px; width:56px; height:56px; border-radius:50%; border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
+    <div id="profile-view-modal" class="modal hidden" style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); z-index: 10000;">
+        <div class="profile-card" style="width: 85%; max-width: 350px; background: none; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+            <div id="profile-large-icon" style="width: 200px; height: 200px; border-radius: 50%; background-color: #fff; background-size: cover; background-position: center; border: 2px solid #fff;"></div>
+            <div id="profile-large-name" style="color: white; font-size: 20px; font-weight: bold;"></div>
+            <button id="close-profile-view" style="margin-top: 20px; padding: 10px 30px; border-radius: 20px; border: 1px solid white; background: none; color: white; cursor: pointer;">閉じる</button>
         </div>
     </div>
 
-    <!-- SW Update Snackbar -->
-    <div id="sw-update-snackbar" style="position: fixed; bottom: 20px; left: 20px; right: 20px; background: #333; color: white; padding: 15px 20px; border-radius: 12px; display: none; align-items: center; justify-content: space-between; z-index: 10000; box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: slideUp 0.3s ease;">
-        <span style="font-size: 14px;">新しいバージョンが利用可能です</span>
-        <div style="display: flex; gap: 15px;">
-            <button id="sw-update-no" style="background: none; border: none; color: #aaa; font-size: 14px; cursor: pointer;">いいえ</button>
-            <button id="sw-update-yes" style="background: none; border: none; color: #5ac8fa; font-size: 14px; font-weight: bold; cursor: pointer;">はい</button>
-        </div>
-    </div>
-
-
-    <!-- V18 Loading Overlay -->
-    <div id="loading-overlay" class="modal hidden" style="z-index: 99999; background: rgba(255,255,255,0.8); flex-direction: column; justify-content: center; align-items: center; display: none;">
+    <div id="loading-overlay" class="modal hidden" style="z-index: 10000; background: rgba(255, 255, 255, 0.7); display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
         <div class="spinner"></div>
-        <p style="margin-top: 15px; font-weight: bold; color: var(--primary-color);">処理中...</p>
     </div>
 
-    <script src="crypto.js"></script>
+    <div id="about-modal" class="modal hidden">
+        <div class="modal-content fullscreen">
+            <div class="modal-header">
+                <h3>Ark-ive について</h3>
+                <button id="close-about-modal" class="close-btn">×</button>
+            </div>
+            <div class="scroll-content" style="padding:30px 20px; text-align:center;">
+                <img id="about-arkive-icon" src="./icon.jpg" style="width:80px; height:80px; border-radius:15px; margin-bottom:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1); cursor:pointer;">
+                <h2 style="margin:0 0 5px 0;">Ark-ive</h2>
+                <p style="color:var(--text-muted); font-size:14px; margin-bottom:30px;">Chat History Vault v1.1.12</p>
+                <div style="text-align:left; font-size:14px; line-height:1.7; color:var(--text-main);">
+                    <p>Ark-ive（アーカイヴ）へようこそ。ここは様々なアプリの記憶を統合し、未来へ残すための場所です。</p>
+                    <p style="margin-top:15px; font-weight:bold; color:var(--primary-color);">【洪水から思い出を守る方舟】</p>
+                    <p>かつてノアの方舟が、大洪水からあらゆる生命を守り抜いた逸話のように。デジタル空間においても、機種変更やアプリの削除、予期せぬトラブルという「情報の洪水」が、あなたの大切な記憶を押し流そうとしています。</p>
+                    <p style="margin-top:10px;">Ark-iveは、散らばったトーク履歴を一箇所に集め、大切に保管する「方舟」となるために生まれました。あの日交わした何気ない言葉、忘れられない名言、共に歩んだ時間の記録を、時代の波に飲まれることなく未来へと運び、いつでも読み返せるようにし続けます。</p>
+                    <p style="margin-top:10px;">形式の異なるチャットログを一つの美しいタイムラインとして整理する。Ark-iveは、あなたの人生の大切な断片を次世代へと繋ぐための記録保管庫です。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fake-app" class="view hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background: var(--bg-color); flex-direction: column;">
+        <div class="modal-content fullscreen">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button id="fake-memo-back-btn" class="back-btn" style="display:none; min-height:auto; min-width:auto; padding:0;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <h3 id="fake-memo-modal-title">メモ</h3>
+                    <span id="fake-memo-selection-label" style="display:none; font-size:16px; font-weight:bold;">選択して削除</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px; justify-content:flex-end;">
+                    <button id="fake-memo-header-search-btn" class="icon-btn" title="検索">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                    <button id="fake-memo-header-bulk-delete-btn" class="icon-btn" title="一括削除">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    <button id="fake-memo-header-delete-confirm-btn" class="icon-btn" title="確定して削除" style="display:none; color:var(--primary-color) !important;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    <button id="fake-memo-header-add-btn" class="icon-btn" title="新規メモ">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M16 3l5 5-9 9-5 1 1-5 9-9z"></path></svg>
+                    </button>
+                    <button id="fake-memo-header-edit-btn" class="icon-btn" title="編集" style="display:none;">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
+                    <button id="fake-memo-header-delete-btn" class="icon-btn" title="削除" style="display:none; color:#ff3b30 !important;">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    <button id="fake-memo-header-save-btn" class="apply-btn" style="display:none; padding: 6px 12px; font-size: 14px;">完了</button>
+                    <button id="fake-memo-lock-btn" class="icon-btn" title="ロック">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="fake-memo-search-bar" style="display:none; padding:10px 20px; border-bottom:1px solid var(--border-color);">
+                <input type="text" id="fake-memo-search-input" placeholder="メモを検索..." style="width:100%; padding:10px 15px; border-radius:20px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:14px; outline:none;">
+            </div>
+            <div id="fake-memo-index-view" class="modal-list" style="flex:1;">
+                <div id="fake-memo-index-list"></div>
+            </div>
+            <div id="fake-memo-edit-view" class="scroll-content" style="display:none; flex-direction:column; gap:15px; padding: 20px;">
+                <input type="text" id="fake-memo-edit-title" placeholder="タイトル" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:16px; outline:none;">
+                <textarea id="fake-memo-edit-content" placeholder="内容を入力..." style="flex:1; width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:16px; resize:none; min-height:200px; outline:none;"></textarea>
+            </div>
+            <div id="fake-memo-detail-view" class="scroll-content" style="display:none; padding: 20px;">
+                <h2 id="fake-memo-detail-title" style="margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:10px; font-size:20px;"></h2>
+                <div id="fake-memo-detail-content" style="white-space:pre-wrap; line-height:1.6; font-size:15px;"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="memo-modal" class="modal hidden">
+        <div class="modal-content fullscreen">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button id="memo-back-btn" class="back-btn" style="display:none; min-height:auto; min-width:auto; padding:0;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <h3 id="memo-modal-title">メモ</h3>
+                    <span id="memo-selection-label" style="display:none; font-size:16px; font-weight:bold;">選択して削除</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px; justify-content:flex-end;">
+                    <button id="memo-header-search-btn" class="icon-btn" title="検索">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                    <button id="memo-header-bulk-delete-btn" class="icon-btn" title="一括削除">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    <button id="memo-header-delete-confirm-btn" class="icon-btn" title="確定して削除" style="display:none; color:var(--primary-color) !important;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    <button id="memo-header-add-btn" class="icon-btn" title="新規メモ">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M16 3l5 5-9 9-5 1 1-5 9-9z"></path></svg>
+                    </button>
+                    <button id="memo-header-edit-btn" class="icon-btn" title="編集" style="display:none;">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
+                    <button id="memo-header-delete-btn" class="icon-btn" title="削除" style="display:none; color:#ff3b30 !important;">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    <button id="memo-header-save-btn" class="apply-btn" style="display:none; padding: 6px 12px; font-size: 14px;">完了</button>
+                    <button id="close-memo-modal-btn" class="close-btn">×</button>
+                </div>
+            </div>
+            <div id="memo-search-bar" style="display:none; padding:10px 20px; border-bottom:1px solid var(--border-color);">
+                <input type="text" id="memo-search-input" placeholder="メモを検索..." style="width:100%; padding:10px 15px; border-radius:20px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:14px; outline:none;">
+            </div>
+            <div id="memo-index-view" class="modal-list" style="flex:1;">
+                <div id="memo-index-list"></div>
+            </div>
+            <div id="memo-edit-view" class="scroll-content" style="display:none; flex-direction:column; gap:15px;">
+                <input type="text" id="memo-edit-title" placeholder="タイトル" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:16px; outline:none;">
+                <textarea id="memo-edit-content" placeholder="内容を入力..." style="flex:1; width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); font-size:16px; resize:none; min-height:200px; outline:none;"></textarea>
+            </div>
+            <div id="memo-detail-view" class="scroll-content" style="display:none;">
+                <h2 id="memo-detail-title" style="margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:10px; font-size:20px;"></h2>
+                <div id="memo-detail-content" style="white-space:pre-wrap; line-height:1.6; font-size:15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="merge-mapping-modal" class="modal hidden" style="z-index: 4000;">
+        <div class="modal-content" style="height:auto; max-height:90vh;">
+            <div class="modal-header">
+                <h3>読み込み設定</h3>
+                <button id="close-merge-mapping-modal" class="close-btn">×</button>
+            </div>
+            <div style="padding:20px; display:flex; flex-direction:column; gap:15px; overflow-y:auto;">
+                <div style="font-size:13px; color:var(--text-muted);">トーク名を確認/変更してください：</div>
+                <input type="text" id="import-mapping-title" placeholder="トーク名" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-color); color:var(--text-main); outline:none;">
+                
+                <div style="font-size:13px; color:var(--text-muted); margin-top:5px;">発言者のマージ（既存のメンバーに統合）:</div>
+                <div id="merge-mapping-list" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
+                
+                <div id="import-icon-setup-section" style="display:none; margin-top:10px; border-top:1px solid var(--border-color); padding-top:15px;">
+                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">ユーザーアイコンの設定（読み込んだ画像から選択）:</div>
+                    <div id="import-icon-list" style="max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+                
+                <button id="merge-mapping-apply-btn" class="apply-btn" style="padding:15px; font-size:16px; margin-top:10px;">トークを読み込む</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="merge-confirm-modal" class="modal hidden" style="z-index: 5000;">
+        <div class="modal-content" style="height:auto; max-height:80vh; width: 90%; max-width: 400px; margin: auto;">
+            <div class="modal-header">
+                <h3>確認</h3>
+            </div>
+            <div style="padding:20px; text-align:center;">
+                <p style="margin-bottom:20px; font-size:16px;">同じトーク名があります。統合しますか？</p>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <button id="merge-confirm-apply-btn" class="apply-btn" style="padding:12px; font-size:15px;">統合する</button>
+                    <button id="merge-confirm-new-btn" class="apply-btn" style="padding:12px; font-size:15px; background:var(--surface-color); color:var(--text-main); border:1px solid var(--border-color);">新規ルーム</button>
+                    <button id="merge-confirm-cancel-btn" class="apply-btn" style="padding:12px; font-size:15px; background:none; color:var(--text-main); border:1px solid var(--border-color); border-radius:12px;">キャンセル</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="favorites-modal" class="modal hidden">
+        <div class="modal-content fullscreen">
+            <div class="modal-header">
+                <h3>お気に入り一覧</h3>
+                <button id="close-favorites-modal" class="close-btn">×</button>
+            </div>
+            <div id="favorites-list" class="modal-list"></div>
+        </div>
+    </div>
+
+    <div id="archived-modal" class="modal hidden">
+        <div class="modal-content fullscreen">
+            <div class="modal-header">
+                <h3>アーカイブ済みトーク</h3>
+                <button id="close-archived-modal" class="close-btn">×</button>
+            </div>
+            <div id="archived-list" class="modal-list"></div>
+        </div>
+    </div>
+
+    <div id="hidden-page-modal" class="modal hidden" style="z-index: 9999;">
+        <div class="modal-content fullscreen">
+            <div class="modal-header">
+                <h3>Ark-ive Secret Page</h3>
+                <button id="close-hidden-page-modal" class="close-btn">×</button>
+            </div>
+            <div class="scroll-content" style="padding:40px 20px; text-align:center;">
+                <div style="font-size:60px; margin-bottom:20px;">🥚</div>
+                <h2>おめでとうございます！</h2>
+                <p>Ark-ive のイースターエッグを見つけました。</p>
+                <div style="margin-top:40px; padding:20px; background:var(--surface-color); border-radius:15px; text-align:left; font-size:14px; line-height:1.6;">
+                    <p>このページは、開発者やコアなユーザーのための隠しエリアです。<br>Ark-ive を愛好してくださり、細部まで探索していただきありがとうございます。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ranking-view" class="view" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:5000; background:var(--bg-color); flex-direction:column;">
+        <div class="modal-header" style="background: var(--surface-color);">
+            <h3 style="margin: 0; font-size: 16px;">ランキング</h3>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <button id="ranking-refresh-btn" style="background: none; border: none; color: var(--primary-color); cursor: pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                </button>
+                <button id="close-ranking-btn" class="close-btn">×</button>
+            </div>
+        </div>
+        <div class="scroll-content" style="padding:15px; display:flex; flex-direction:column;">
+            <div style="text-align: center; padding: 10px; border-bottom: 1px solid var(--border-color); background: var(--surface-color);">
+                <button id="toggle-ranking-picker-btn" style="background:none; border:none; color:var(--primary-color); font-weight:bold; font-size:16px;">設定: <span id="ranking-min-len-label">2</span>文字以上 ▼</button>
+                <div id="ranking-picker-container" class="hidden" style="margin-top: 15px;">
+                    <div id="picker-min-len" class="digit-picker-wrap" style="width: 80px; margin: auto;"></div>
+                </div>
+            </div>
+            <div id="ranking-list" style="flex:1;"></div>
+        </div>
+    </div>
+
     <script src="db.js"></script>
+    <script src="crypto.js"></script>
+    <script src="search.js"></script>
     <script src="parser.js"></script>
     <script src="virtual-scroll.js"></script>
-    <script src="search.js"></script>
     <script src="app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registered'))
-                    .catch(err => console.log('SW registration failed', err));
-            });
-        }
-    </script>
 </body>
-
 </html>

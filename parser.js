@@ -178,6 +178,17 @@ function parseInstagramHtml(text) {
     return { title, messages };
 }
 
+function extractCallDuration(text) {
+    if (!text) return 0;
+    const match = text.match(/(?:☎\s*)?通話時間\s*(\d+):(\d+)(?::(\d+))?/);
+    if (!match) return 0;
+    if (match[3]) { // H:M:S の場合
+        return parseInt(match[1], 10) * 3600 + parseInt(match[2], 10) * 60 + parseInt(match[3], 10);
+    } else { // M:S の場合
+        return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+    }
+}
+
 function parseKakaoTxt(text) {
     const lines = text.split(/\r?\n/);
     let title = lines[0] ? lines[0].replace('님과 카카오톡 대화', '').trim() : "KakaoTalk";
@@ -219,16 +230,6 @@ function parseKakaoTxt(text) {
                 if (lastDate) tstamp = getSafeTimestamp(lastDate, timeStr);
             }
             
-            // V12: Call duration extraction (Kakao format can differ but usually text)
-            let callDuration = 0;
-            const callMatch = content.match(/☎ 通話時間\s*(\d+):(\d+)(?::(\d+))?/);
-            if (callMatch) {
-                const h = callMatch[3] ? parseInt(callMatch[1], 10) : 0;
-                const m = callMatch[3] ? parseInt(callMatch[2], 10) : parseInt(callMatch[1], 10);
-                const s = callMatch[3] ? parseInt(callMatch[3], 10) : parseInt(callMatch[2], 10);
-                callDuration = h * 3600 + m * 60 + s;
-            }
-
             messages.push({
                 type: 'msg',
                 time: timeStr,
@@ -236,7 +237,7 @@ function parseKakaoTxt(text) {
                 text: content,
                 date: lastDate,
                 _timestamp: tstamp,
-                callDuration: callDuration
+                callDuration: extractCallDuration(content)
             });
             return;
         }
@@ -289,15 +290,6 @@ function parseLineChat(text) {
         if (msgMatch) {
             let tstamp = 0;
             if (fallbackDate) tstamp = getSafeTimestamp(fallbackDate, msgMatch[1]);
-            // V12: Call duration extraction
-            let callDuration = 0;
-            const callMatch = msgMatch[3].match(/☎ 通話時間\s*(\d+):(\d+)(?::(\d+))?/);
-            if (callMatch) {
-                const h = callMatch[3] ? parseInt(callMatch[1], 10) : 0;
-                const m = callMatch[3] ? parseInt(callMatch[2], 10) : parseInt(callMatch[1], 10);
-                const s = callMatch[3] ? parseInt(callMatch[3], 10) : parseInt(callMatch[2], 10);
-                callDuration = h * 3600 + m * 60 + s;
-            }
 
             currentMessage = {
                 type: 'msg',
@@ -306,7 +298,7 @@ function parseLineChat(text) {
                 text: msgMatch[3],
                 date: fallbackDate || '',
                 _timestamp: tstamp,
-                callDuration: callDuration
+                callDuration: extractCallDuration(msgMatch[3])
             };
             messages.push(currentMessage);
             continue;
@@ -316,15 +308,6 @@ function parseLineChat(text) {
         if (sysMatch && !currentMessage && sysMatch[2] !== '') {
             let tstamp = 0;
             if (fallbackDate) tstamp = getSafeTimestamp(fallbackDate, sysMatch[1]);
-            // V12: Call duration extraction for sys messages (sometimes duration is here)
-            let callDuration = 0;
-            const callMatch = sysMatch[2].match(/☎ 通話時間\s*(\d+):(\d+)(?::(\d+))?/);
-            if (callMatch) {
-                const h = callMatch[3] ? parseInt(callMatch[1], 10) : 0;
-                const m = callMatch[3] ? parseInt(callMatch[2], 10) : parseInt(callMatch[1], 10);
-                const s = callMatch[3] ? parseInt(callMatch[3], 10) : parseInt(callMatch[2], 10);
-                callDuration = h * 3600 + m * 60 + s;
-            }
 
             currentMessage = {
                 type: 'sys',
@@ -332,7 +315,7 @@ function parseLineChat(text) {
                 text: sysMatch[2],
                 date: fallbackDate || '',
                 _timestamp: tstamp,
-                callDuration: callDuration
+                callDuration: extractCallDuration(sysMatch[2])
             };
             messages.push(currentMessage);
             continue;

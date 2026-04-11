@@ -315,6 +315,19 @@ class LineChatDB {
         }
     }
 
+    static async clearAll(clearSettings = true) {
+        const db = await this.init();
+        return new Promise((resolve, reject) => {
+            const stores = [STORE_NAME];
+            if (clearSettings) stores.push(SETTINGS_STORE);
+            const transaction = db.transaction(stores, "readwrite");
+            transaction.objectStore(STORE_NAME).clear();
+            if (clearSettings) transaction.objectStore(SETTINGS_STORE).clear();
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = (e) => reject(e.target.error);
+        });
+    }
+
     static async importFullBackup(data) {
         if (!data || (data.version !== "v13-backup" && data.version !== "v15-backup") || !data.chats) {
             throw new Error("Invalid backup data");

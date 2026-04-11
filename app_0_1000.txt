@@ -1,0 +1,1000 @@
+﻿let vScroll = null;
+let flipSender = false;
+let currentChat = null;
+let currentChatId = null;
+
+let searchHighlightIndices = new Set();
+let activeSearchIndexValue = -1;
+window.isOpenedFromArchive = false;
+
+const APP_VERSION = "v1.1.12";
+
+const I18N_MAP = {
+    ja: {
+        TITLE_GLOBAL_SEARCH: "髯ｷ闌ｨ・ｽ・ｨ驛｢譎冗樟郢晢ｽｻ驛｢・ｧ繝ｻ・ｯ髫ｶﾂ隲帙・・ｽ・ｴ繝ｻ・｢",
+        TITLE_GLOBAL_CALENDAR: "驛｢・ｧ繝ｻ・ｰ驛｢譎｢・ｽ・ｭ驛｢譎｢・ｽ・ｼ驛｢譎√・・取刮・ｹ・ｧ繝ｻ・ｫ驛｢譎｢・ｽ・ｬ驛｢譎｢・ｽ・ｳ驛｢謨鳴驛｢譎｢・ｽ・ｼ",
+        TITLE_RANDOM_JUMP: "驛｢譎｢・ｽ・ｩ驛｢譎｢・ｽ・ｳ驛｢謨鳴驛｢譎｢・ｿ・ｽ驛｢・ｧ繝ｻ・ｸ驛｢譎｢・ｽ・｣驛｢譎｢・ｽ・ｳ驛｢譏ｴ繝ｻ,
+        TITLE_MENU: "驛｢譎｢・ｽ・｡驛｢譏懶ｽｹ譁溽､ｼ・ｹ譎｢・ｽ・ｼ",
+        MENU_IMPORT: "驛｢譎冗樟郢晢ｽｻ驛｢・ｧ繝ｻ・ｯ鬮ｫ・ｱ繝ｻ・ｭ驍ｵ・ｺ繝ｻ・ｿ鬮ｴ雜｣・ｽ・ｼ驍ｵ・ｺ繝ｻ・ｿ",
+        MENU_FAV: "驍ｵ・ｺ鬯・汚・ｽ・ｰ陷会ｽｱ遶頑･｢諤ｦ繝ｻ・･驛｢・ｧ髮榊・・ｽ・ｸ・つ鬮ｫ蛹・ｽｽ・ｧ",
+        MENU_ARCHIVE: "驛｢・ｧ繝ｻ・｢驛｢譎｢・ｽ・ｼ驛｢・ｧ繝ｻ・ｫ驛｢・ｧ繝ｻ・､驛｢譎会ｽｴ蜈ｷ・ｽ・ｸ・つ鬮ｫ蛹・ｽｽ・ｧ",
+        MENU_MEMO: "驛｢譎｢・ｽ・｡驛｢譎｢・ｽ・｢",
+        MENU_MANUAL: "驛｢譎・ｽｧ・ｭ郢晢ｽｫ驛｢譎｢・ｽ・･驛｢・ｧ繝ｻ・｢驛｢譎｢・ｽ・ｫ",
+        MENU_SETTINGS: "鬮ｫ・ｪ繝ｻ・ｭ髯橸ｽｳ郢晢ｽｻ,
+        SETTING_THEME: "驛｢譏ｴ繝ｻ邵ｺ蛟｡・ｹ・ｧ繝ｻ・､驛｢譎｢・ｽ・ｳ驛｢譏ｴ繝ｻ郢晢ｽｻ驛｢譏ｴ繝ｻ,
+        SETTING_LANG: "Language",
+        SETTING_PASS_LOCK: "驛｢譏懶ｽｻ・｣邵ｺ蟶ｷ・ｹ・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・ｼ驛｢譎擾ｽｳ・ｨ・取ｺｽ・ｹ譏ｴ繝ｻ邵ｺ驢搾ｽｹ・ｧ陷ｻ蝓淞蜑ｰ諤上・・ｹ驍ｵ・ｺ繝ｻ・ｫ驍ｵ・ｺ陷ｷ・ｶ繝ｻ繝ｻ,
+        SETTING_PASS_WARN: "驍ｵ・ｲ陷亥沺ﾂ蜥趣ｽｩ・･陝雜｣・ｽ・ｦ郢晢ｽｻ繝ｻ・ｼ陞｢・ｹ郢晢ｽｱ驛｢・ｧ繝ｻ・ｹ驛｢・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・ｼ驛｢譎√・繝ｻ・ｴ陝ｶ蟷｢・ｽ・､繝ｻ・ｱ驍ｵ・ｺ繝ｻ・ｮ鬮ｫ・ｴ繝ｻ・ｦ髯ｷ・ｻ驗呻ｽｫ・つ闔会ｽ｣郢晢ｽｱ驛｢・ｧ繝ｻ・ｹ驛｢・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・ｼ驛｢譎擾ｽｳ・ｨ繝ｻ螳夲｣ｰ・｢陋滂ｽ･繝ｻ讙趣ｽｹ・ｧ闕ｵ譏ｶ繝ｻ髯溷桁・ｽ・ｩ髯ｷ蛹ｻ繝ｻ繝ｻ・ｸ隶朱宦・ｺ繝ｻ螯吶・・ｽ驍ｵ・ｺ繝ｻ・ｧ驍ｵ・ｺ陷ｷ・ｶ・つ郢晢ｽｻ,
+        SETTING_MAIN_PASS: "驛｢譎｢・ｽ・｡驛｢・ｧ繝ｻ・､驛｢譎｢・ｽ・ｳ驛｢譏懶ｽｻ・｣邵ｺ蟶ｷ・ｹ・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・ｼ驛｢譎擾ｽｳ・ｨ繝ｻ蟶晏搦繝ｻ・ｭ髯橸ｽｳ郢晢ｽｻ,
+        SETTING_FAKE_PASS: "髯句ｹ｢・ｽ・ｽ驛｢譏懶ｽｻ・｣邵ｺ蟶ｷ・ｹ・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・ｼ驛｢譎擾ｽｳ・ｨ繝ｻ蟶晏搦繝ｻ・ｭ髯橸ｽｳ郢晢ｽｻ,
+        SETTING_BACKUP_RESTORE: "驛｢譎√・郢晢ｽ｣驛｢・ｧ繝ｻ・ｯ驛｢・ｧ繝ｻ・｢驛｢譏ｴ繝ｻ郢晢ｽｻ驍ｵ・ｺ繝ｻ・ｨ髯溷桁・ｽ・ｩ髯ｷ蛹ｻ繝ｻ,
+        RANKING_TITLE: "驛｢譎｢・ｽ・ｩ驛｢譎｢・ｽ・ｳ驛｢・ｧ繝ｻ・ｭ驛｢譎｢・ｽ・ｳ驛｢・ｧ繝ｻ・ｰ",
+        RANKING_CHARS_UP: "髫ｴ竏壹・繝ｻ・ｭ陟搾ｽｺ繝ｻ・ｻ繝ｻ・･髣包ｽｳ郢晢ｽｻ,
+        RANKING_REFRESH: "髫ｴ蜴・ｽｽ・ｴ髫ｴ繝ｻ・ｽ・ｰ",
+        BTN_SAVE: "髣厄ｽｫ隴取得・ｽ・ｭ郢晢ｽｻ,
+        BTN_APPLY: "鬯ｩ蛹・ｽｽ・ｩ鬨ｾ蛹・ｽｽ・ｨ",
+        BTN_CANCEL: "驛｢・ｧ繝ｻ・ｭ驛｢譎｢・ｽ・｣驛｢譎｢・ｽ・ｳ驛｢・ｧ繝ｻ・ｻ驛｢譎｢・ｽ・ｫ",
+        BTN_CLOSE: "鬯ｮ・｢陝ｲ・ｨ・ゑｽｧ驛｢・ｧ郢晢ｽｻ
+    },
+    en: {
+        TITLE_GLOBAL_SEARCH: "Global Search",
+        TITLE_GLOBAL_CALENDAR: "Global Calendar",
+        TITLE_RANDOM_JUMP: "Random Jump",
+        TITLE_MENU: "Menu",
+        MENU_IMPORT: "Import Chat",
+        MENU_FAV: "Favorites",
+        MENU_ARCHIVE: "Archive",
+        MENU_MEMO: "Memo",
+        MENU_MANUAL: "Manual",
+        MENU_SETTINGS: "Settings",
+        SETTING_THEME: "Theme",
+        SETTING_LANG: "Language",
+        SETTING_PASS_LOCK: "Enable Passcode Lock",
+        SETTING_PASS_WARN: "[IMPORTANT: Passcode Warning] Locked out data is unrecoverable.",
+        SETTING_MAIN_PASS: "Set Main Passcode",
+        SETTING_FAKE_PASS: "Set Fake Passcode",
+        SETTING_BACKUP_RESTORE: "Backup & Restore",
+        RANKING_TITLE: "Ranking",
+        RANKING_CHARS_UP: "chars+",
+        RANKING_REFRESH: "Refresh",
+        BTN_SAVE: "Save",
+        BTN_APPLY: "Apply",
+        BTN_CANCEL: "Cancel",
+        BTN_CLOSE: "Close"
+    }
+};
+
+let currentLang = 'ja';
+function updateAppLanguage(lang) {
+    currentLang = lang;
+    const map = I18N_MAP[lang] || I18N_MAP['ja'];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (map[key]) el.textContent = map[key];
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.dataset.i18nTitle;
+        if (map[key]) el.title = map[key];
+    });
+    LineChatDB.setSetting('app_lang', lang);
+}
+
+// Global UI Elements
+const mainApp = document.getElementById('main-app');
+const lockScreen = document.getElementById('lock-screen');
+const listView = document.getElementById('list-view');
+const roomView = document.getElementById('room-view');
+const rankingView = document.getElementById('ranking-view');
+const fakeApp = document.getElementById('fake-app');
+const manualView = document.getElementById('manual-view');
+const views = [mainApp, lockScreen, listView, roomView, rankingView, fakeApp, manualView].filter(Boolean);
+
+const passcodeInput = document.getElementById('passcode-input');
+const passcodeError = document.getElementById('passcode-error');
+window.dbReady = false;
+async function waitDBReady() {
+    while(!window.dbReady) {
+        await new Promise(r => setTimeout(r, 100));
+    }
+}
+
+let gCalDate = new Date();
+window.currentGlobalHitSenders = new Set(); 
+
+// V1.1.7: Unified Calendar Implementation
+
+window.initGlobalCalendar = async () => {
+    const chats = await LineChatDB.getAllChats();
+    const allMessages = [];
+    chats.forEach(c => allMessages.push(...c.messages));
+    
+    // Use center (latest) if opening for the first time?
+    // Actually global calendar usually starts at "now" or "latest data"
+    if (allMessages.length > 0) {
+        const lastMsg = allMessages[allMessages.length - 1];
+        if (lastMsg && lastMsg.date) {
+            const p = lastMsg.date.split('/');
+            gCalDate = new Date(parseInt(p[0]), parseInt(p[1]) - 1, 1);
+        }
+    }
+    renderCalendar(allMessages, { isGlobal: true }, gCalDate);
+};
+
+async function renderCalendar(messages, context, date) {
+    const isGlobal = !!context.isGlobal;
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    if (isGlobal) gCalDate = date; else window.roomCalDate = date;
+
+    const config = isGlobal ? {
+        modal: 'global-calendar-modal',
+        grid: 'global-calendar-grid',
+        monthLabel: 'global-cal-month-label',
+        statsColor: '#5ac8fa',
+        statsLabel: 'global-cal-stats',
+        prevBtn: 'global-cal-prev-btn',
+        nextBtn: 'global-cal-next-btn',
+        list: 'global-month-list-view',
+        header: null
+    } : {
+        modal: 'date-modal',
+        grid: 'calendar-grid',
+        monthLabel: 'cal-month-label',
+        statsColor: '#5ac8fa',
+        statsLabel: 'cal-total-count',
+        prevBtn: 'cal-prev-btn',
+        nextBtn: 'cal-next-btn',
+        list: 'month-list-view',
+        header: 'calendar-header-main'
+    };
+
+    const stats = {};
+    let minT = Infinity, maxT = -Infinity;
+    messages.forEach(m => {
+        if (m.date && m.date.includes('/')) {
+            const p = m.date.split('/');
+            const y = parseInt(p[0]), mo = parseInt(p[1]), d = parseInt(p[2]);
+            const t = y * 12 + (mo - 1);
+            if (t < minT) minT = t;
+            if (t > maxT) maxT = t;
+            const key = `${y}-${mo}-${d}`;
+            if (!stats[key]) stats[key] = { count: 0, call: 0 };
+            if (m.type === 'msg') stats[key].count++;
+            if (m.callDuration) stats[key].call += m.callDuration;
+        }
+    });
+
+    const currentT = year * 12 + month;
+    const label = findViewById(config.monthLabel);
+    if (label) {
+        label.textContent = `${year}髯晢ｽｷ繝ｻ・ｴ ${month + 1}髫ｴ蟶吶・;
+        label.onclick = () => renderMonthJumpList(messages, context, date, { minT, maxT });
+    }
+
+    const pb = findViewById(config.prevBtn);
+    const nb = findViewById(config.nextBtn);
+    if (pb) {
+        pb.style.opacity = currentT <= minT ? "0.2" : "1";
+        pb.style.pointerEvents = currentT <= minT ? "none" : "auto";
+        pb.onclick = () => renderCalendar(messages, context, new Date(year, month - 1, 1));
+    }
+    if (nb) {
+        nb.style.opacity = currentT >= maxT ? "0.2" : "1";
+        nb.style.pointerEvents = currentT >= maxT ? "none" : "auto";
+        nb.onclick = () => renderCalendar(messages, context, new Date(year, month + 1, 1));
+    }
+
+    const grid = findViewById(config.grid);
+    if (!grid) return;
+    grid.innerHTML = '';
+    ['髫ｴ魃会ｽｽ・･','髫ｴ蟶吶・,'髴難ｽ｣繝ｻ・ｫ','髮朱ｯ会ｽｽ・ｴ','髫ｴ蟷｢・ｽ・ｨ','鬯ｩ・･郢晢ｽｻ,'髯懶ｽｨ郢晢ｽｻ].forEach(d => {
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell cal-header-cell';
+        cell.textContent = d;
+        grid.appendChild(cell);
+    });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+    let monthTotal = 0, monthCall = 0;
+    const fmt = (s) => (typeof formatCallTime === 'function' ? formatCallTime(s) : (window.formatCallTime ? window.formatCallTime(s) : s));
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell';
+        cell.innerHTML = `<span>${d}</span>`;
+        const key = `${year}-${month + 1}-${d}`;
+        const data = stats[key];
+        if (data) {
+            cell.classList.add('cal-day_valid');
+            if (data.count > 0) {
+                monthTotal += data.count;
+                cell.innerHTML += `<div class="cal-activity-badge">${data.count}</div>`;
+            }
+            if (data.call > 0) {
+                monthCall += data.call;
+                cell.innerHTML += `<div style="font-size:9px; color:${config.statsColor};">髫ｨ蛟･繝ｻ{fmt(data.call)}</div>`;
+            }
+            cell.onclick = () => {
+                if (isGlobal) window.showGlobalDailyLogs(`${year}/${String(month+1).padStart(2,'0')}/${String(d).padStart(2,'0')}`);
+                else {
+                    const ds = `${year}/${String(month+1).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+                    const idx = messages.findIndex(m => m.date === ds);
+                    if (idx >= 0) { findViewById(config.modal).classList.add('hidden'); vScroll.scrollToIndex(idx); }
+                }
+            };
+        } else {
+            cell.classList.add('cal-day_invalid');
+        }
+        grid.appendChild(cell);
+    }
+
+    const statsNode = findViewById(config.statsLabel);
+    if (statsNode) {
+        let text = `髫ｴ蟶托ｽｺ・･驍顔洸蝮守ｹ晢ｽｻ ${monthTotal.toLocaleString()}髣比ｼ夲ｽｽ・ｶ`;
+        text += ` / 髫ｨ蛟･繝ｻ${monthCall > 0 ? fmt(monthCall) : '0:00'}`;
+        statsNode.textContent = text;
+    }
+}
+
+function renderMonthJumpList(messages, context, currentDate, range) {
+    const isGlobal = !!context.isGlobal;
+    const config = isGlobal ? {
+        list: 'global-month-list-view',
+        grid: 'global-calendar-grid',
+        prev: 'global-cal-prev-btn',
+        next: 'global-cal-next-btn',
+        header: null
+    } : {
+        list: 'month-list-view',
+        grid: 'calendar-grid',
+        prev: 'cal-prev-btn',
+        next: 'cal-next-btn',
+        header: 'calendar-header-main'
+    };
+    const lv = findViewById(config.list);
+    const gv = findViewById(config.grid);
+    if (!lv || !gv) return;
+    if (!lv.classList.contains('hidden')) { closeMonthList(config); return; }
+
+    if (gv) { gv.classList.add('hidden'); gv.style.display = 'none'; }
+    if (config.header) {
+        const header = findViewById(config.header);
+        if (header) header.style.visibility = 'hidden';
+    }
+    const pbBtn = findViewById(config.prev);
+    if (pbBtn) pbBtn.classList.add('hidden');
+    const nbBtn = findViewById(config.next);
+    if (nbBtn) nbBtn.classList.add('hidden');
+    if (lv) {
+        lv.classList.add('full-screen');
+        lv.classList.remove('hidden');
+        lv.innerHTML = '';
+    }
+
+    const monthStats = {};
+    messages.forEach(m => {
+        if (m.date && m.date.includes('/')) {
+            const p = m.date.split('/');
+            const mKey = `${p[0]}-${p[1]}`;
+            if (!monthStats[mKey]) monthStats[mKey] = { count: 0, call: 0 };
+            if (m.type === 'msg') monthStats[mKey].count++;
+            if (m.callDuration) monthStats[mKey].call += m.callDuration;
+        }
+    });
+
+    const container = document.createElement('div');
+    container.style.paddingTop = "50px";
+    const fmt = (s) => (typeof formatCallTime === 'function' ? formatCallTime(s) : (window.formatCallTime ? window.formatCallTime(s) : s));
+    for (let t = range.maxT; t >= range.minT; t--) {
+        const y = Math.floor(t / 12), m = (t % 12) + 1;
+        const data = monthStats[`${y}-${m}`] || { count: 0, call: 0 };
+        const div = document.createElement('div');
+        div.className = 'modal-list-item';
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.innerHTML = `<span style="font-weight:bold;">${y}髯晢ｽｷ繝ｻ・ｴ ${m}髫ｴ蟶吶・/span> <span style="font-size:12px; color:var(--text-muted);">${data.count}髣比ｼ夲ｽｽ・ｶ${data.call > 0 ? ' / 髫ｨ蛟･繝ｻ + fmt(data.call) : ''}</span>`;
+        div.onclick = () => { closeMonthList(config); renderCalendar(messages, context, new Date(y, m - 1, 1)); };
+        container.appendChild(div);
+    }
+    lv.appendChild(container);
+}
+
+function closeMonthList(config) {
+    const lv = findViewById(config.list);
+    const gv = findViewById(config.grid);
+    if (lv) { lv.classList.remove('full-screen'); lv.classList.add('hidden'); lv.innerHTML = ''; }
+    if (gv) { gv.classList.remove('hidden'); gv.style.display = 'grid'; }
+    if (config.header) {
+        const header = findViewById(config.header);
+        if (header) header.style.visibility = 'visible';
+    }
+    const pbBtn = findViewById(config.prev);
+    if (pbBtn) pbBtn.classList.remove('hidden');
+    const nbBtn = findViewById(config.next);
+    if (nbBtn) nbBtn.classList.remove('hidden');
+}
+
+
+window.showGlobalDailyLogs = async (dateStr) => {
+    const chats = await LineChatDB.getAllChats();
+    let hits = [];
+    chats.forEach(chat => {
+        chat.messages.forEach((m, idx) => {
+            if (m.date === dateStr && m.type === 'msg') {
+                hits.push({ chat, message: m, index: idx });
+            }
+        });
+    });
+
+    if (hits.length === 0) {
+        if (typeof showToast === 'function') showToast('驍ｵ・ｺ髦ｮ蜷ｶ繝ｻ髫ｴ魃会ｽｽ・･驍ｵ・ｺ繝ｻ・ｮ鬮ｫ・ｪ陋滂ｽｬ魄厄ｽｸ驍ｵ・ｺ繝ｻ・ｯ驍ｵ・ｺ郢ｧ繝ｻ・ｽ鬘費ｽｸ・ｺ繝ｻ・ｾ驍ｵ・ｺ陝ｶ蜻ｻ・ｽ繝ｻ);
+        return;
+    }
+
+    // Sort by timestamp ascending (Timeline order)
+    hits.sort((a, b) => (a.message._timestamp || 0) - (b.message._timestamp || 0));
+
+    const modal = findViewById(UI_MODALS.G_SEARCH);
+    const resultsNode = findViewById('global-search-results');
+    const titleNode = modal.querySelector('h3');
+
+    // UI Tweak: Transform Search Modal to "Daily Log" mode
+    titleNode.innerHTML = `${dateStr} 驍ｵ・ｺ繝ｻ・ｮ鬮ｫ・ｪ陋滂ｽｬ魄厄ｽｸ (<span id="global-search-total-hits">${hits.length}</span>髣比ｼ夲ｽｽ・ｶ)`;
+    findViewById('global-search-input').style.display = 'none';
+    findViewById('global-search-config').style.display = 'none';
+
+    let html = '';
+    hits.forEach(h => {
+        // V34: Unified HTML with global search and individual search
+        html += `<div class="modal-list-item global-hit-card" data-id="${h.chat.id}" data-idx="${h.index}">
+            <div class="search-hit-sender">
+                <span style="color:var(--primary-color); font-weight:bold;">[${h.chat.title}]</span> 
+                <span style="color:#7494c0; margin-left:5px;">${h.message.date || ''}</span> 
+                ${h.message.sender} 
+                <span style="color:#777; font-weight:normal;">(${h.message.time || ''})</span>
+            </div>
+            <div class="search-hit-text">${h.message.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        </div>`;
+    });
+    resultsNode.innerHTML = html;
+    
+    pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.G_SEARCH });
+};
+
+// V21: State Constants
+const UI_VIEWS = {
+    LIST: 'list',
+    ROOM: 'room',
+    MANUAL: 'manual',
+    LOCK: 'lock',
+    FAKE: 'fake',
+    FAKE_MEMO: 'fake_memo',
+    RANKING: 'ranking'
+};
+
+const UI_MODALS = {
+    SETTINGS: 'settings-modal',
+    SEARCH: 'search-modal',
+    DATE: 'date-modal',
+    FAVORITES: 'favorites-modal',
+    ARCHIVED: 'archived-modal',
+    MEMO_LIST: 'memo-modal',
+    ROOM_SETTINGS: 'room-settings-modal',
+    BACKUP_OPT: 'backup-options-modal',
+    G_SEARCH: 'global-search-modal',
+    G_CAL: 'global-calendar-modal',
+    ABOUT: 'about-modal'
+};
+
+const chatListContainer = document.getElementById('chat-list');
+const fileInput = document.getElementById('file-input');
+const backBtn = document.getElementById('back-btn');
+const roomTitle = document.getElementById('room-title');
+const flipBtn = document.getElementById('flip-btn');
+const roomFileInput = document.getElementById('room-file-input');
+
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettingsBtn = document.getElementById('close-settings-modal');
+const manualBtn = document.getElementById('manual-btn');
+const manualModal = document.getElementById('manual-modal');
+const closeManualBtn = document.getElementById('close-manual-modal');
+
+const passToggle = document.getElementById('password-toggle');
+const passSetupContainer = document.getElementById('password-setup-container');
+const newPassInput = document.getElementById('new-password');
+const savePassBtn = document.getElementById('save-password-btn');
+
+const themeSelect = document.getElementById('theme-select');
+const toastNode = document.getElementById('toast');
+const contextMenu = document.getElementById('context-menu');
+const ctxRename = document.getElementById('ctx-rename');
+const ctxDelete = document.getElementById('ctx-delete');
+const ctxAdd = document.getElementById('ctx-add');
+let contextTargetId = null;
+
+const iconDisplay = document.getElementById('room-icon-display');
+const iconText = document.getElementById('room-icon-text');
+const iconInput = document.getElementById('icon-input');
+
+const listContainer = document.getElementById('message-list');
+const scrollContainer = document.getElementById('message-container');
+const spacerContainer = document.getElementById('virtual-spacer');
+
+vScroll = new VirtualScroll(scrollContainer, listContainer, spacerContainer);
+
+let tooltipTimer = null;
+let lastTouchPos = { x: 0, y: 0 };
+const scrollDateLabel = document.getElementById('scroll-date-label');
+const longpressTooltip = document.getElementById('longpress-tooltip');
+
+function showToast(msg) {
+    const node = document.getElementById('toast');
+    if (!node) return;
+    node.textContent = msg;
+    node.classList.add('show');
+    setTimeout(() => {
+        if (node) node.classList.remove('show');
+    }, 3000);
+}
+
+function showLoading() {
+    const loader = document.getElementById('loading-overlay');
+    if (loader) {
+        loader.classList.remove('hidden');
+        loader.style.display = 'flex';
+    }
+}
+
+function hideLoading() {
+    const loader = document.getElementById('loading-overlay');
+    if (loader) {
+        loader.classList.add('hidden');
+        loader.style.display = 'none';
+    }
+}
+
+function applyTheme(theme) {
+    if (theme === 'system') {
+        document.documentElement.removeAttribute('data-theme');
+    } else {
+        document.documentElement.setAttribute('data-theme', theme);
+    }
+}
+const savedTheme = localStorage.getItem('app_theme') || 'line';
+themeSelect.value = savedTheme;
+applyTheme(savedTheme);
+
+themeSelect.addEventListener('change', (e) => {
+    localStorage.setItem('app_theme', e.target.value);
+    applyTheme(e.target.value);
+});
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#context-menu') && !e.target.closest('.chat-item-wrapper') && !e.target.closest('.message-row')) {
+        contextMenu.classList.remove('active');
+    }
+});
+
+// V23: Event Delegation for Chat List
+if (chatListContainer) {
+    chatListContainer.addEventListener('click', (e) => {
+        const item = e.target.closest('.chat-item');
+        if (item && item.dataset.id) {
+            console.log('驛｢譎冗樟郢晢ｽｻ驛｢・ｧ繝ｻ・ｯ驍ｵ・ｺ陟募ｾ鯉ｿ驛｢譎｢・ｽ・ｪ驛｢譏ｴ繝ｻ邵ｺ驢搾ｽｸ・ｺ髴郁ｲｻ・ｽ讙趣ｽｸ・ｺ繝ｻ・ｾ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ(List):', item.dataset.id);
+            window.isOpenedFromArchive = false;
+            openChat(item.dataset.id);
+        }
+    });
+}
+// V23: Event Delegation for Archived List
+const archivedListContainer = document.getElementById('archived-list');
+if (archivedListContainer) {
+    archivedListContainer.addEventListener('click', (e) => {
+        const item = e.target.closest('.chat-item');
+        if (item && item.dataset.id) {
+            console.log('驛｢譎冗樟郢晢ｽｻ驛｢・ｧ繝ｻ・ｯ驍ｵ・ｺ陟募ｾ鯉ｿ驛｢譎｢・ｽ・ｪ驛｢譏ｴ繝ｻ邵ｺ驢搾ｽｸ・ｺ髴郁ｲｻ・ｽ讙趣ｽｸ・ｺ繝ｻ・ｾ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ(Archive):', item.dataset.id);
+            window.isOpenedFromArchive = true;
+            openChat(item.dataset.id);
+        }
+    });
+}
+
+ctxRename.addEventListener('click', async () => {
+    contextMenu.classList.remove('active');
+    if (!contextTargetId) return;
+    const chat = await LineChatDB.getChatById(contextTargetId);
+    if (!chat) return;
+    const newName = prompt('髫ｴ繝ｻ・ｽ・ｰ驍ｵ・ｺ陷会ｽｱ繝ｻ讚∵・隶朱｡披・驛｢・ｧ髮区ｧｭ繝ｻ髯ｷ迚呻ｽｸ蜻ｻ・ｼ・ｰ驍ｵ・ｺ繝ｻ・ｦ驍ｵ・ｺ闕ｳ蟯ｩ蜻ｳ驍ｵ・ｺ髴郁ｲｻ・ｼ讒ｭ繝ｻ郢晢ｽｻ, chat.title);
+    if (newName && newName.trim() !== '') {
+        chat.title = newName.trim();
+        await LineChatDB.updateChat(chat);
+        await loadChatList();
+        showToast('髯ｷ・ｷ隶朱｡披・驛｢・ｧ髮区ｩｸ・ｽ・､騾包ｽｻ陝ｲ・ｩ驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ);
+    }
+});
+
+ctxDelete.addEventListener('click', async () => {
+    contextMenu.classList.remove('active');
+    if (!contextTargetId) return;
+    
+    // V50: Check if it's a message or a chat
+    if (typeof contextTargetId === 'string' && contextTargetId.startsWith('msg-')) {
+        const idx = parseInt(contextTargetId.replace('msg-', ''));
+        if (currentChat && confirm('驍ｵ・ｺ髦ｮ蜷ｶ繝ｻ驛｢譎｢・ｽ・｡驛｢譏ｴ繝ｻ邵ｺ譎会ｽｹ譎｢・ｽ・ｼ驛｢・ｧ繝ｻ・ｸ驛｢・ｧ髮区ｨ抵ｽ朱ｬｮ・ｯ繝ｻ・､驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷ｷ・ｶ・ゑｽｰ郢晢ｽｻ郢晢ｽｻ)) {
+            currentChat.messages.splice(idx, 1);
+            await LineChatDB.updateChat(currentChat);
+            showToast('驛｢譎｢・ｽ・｡驛｢譏ｴ繝ｻ邵ｺ譎会ｽｹ譎｢・ｽ・ｼ驛｢・ｧ繝ｻ・ｸ驛｢・ｧ髮区ｨ抵ｽ朱ｬｮ・ｯ繝ｻ・､驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ);
+            await openChatInternal(currentChat.id);
+        }
+        return;
+    }
+
+    const confirmDelete = confirm('驍ｵ・ｺ髦ｮ蜷ｶ繝ｻ驛｢譎冗樟郢晢ｽｻ驛｢・ｧ繝ｻ・ｯ髯橸ｽｻ繝ｻ・･髮弱・・ｽ・ｴ驛｢・ｧ髮区ｩｸ・ｽ・ｮ隰疲ｺ倥・驍ｵ・ｺ繝ｻ・ｫ髯ｷ蜿ｰ・ｼ竏晄ｱるし・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷ｷ・ｶ・ゑｽｰ郢晢ｽｻ雎√ワ郢晢ｽｻ闔・･郢晢ｽｻ驍ｵ・ｺ繝ｻ・ｫ髫ｰ魃会ｽｽ・ｻ驍ｵ・ｺ陝ｶ蜷ｮ遨宣し・ｺ陝ｶ蜻ｻ・ｽ阮吶・郢晢ｽｻ);
+    if (confirmDelete) {
+        await LineChatDB.deleteChat(contextTargetId);
+        await loadChatList();
+        showToast('驛｢譎冗樟郢晢ｽｻ驛｢・ｧ繝ｻ・ｯ驛｢・ｧ髮区ｨ抵ｽ朱ｬｮ・ｯ繝ｻ・､驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ);
+    }
+});
+
+// V50: Context Menu Handlers
+const ctxCopyBtn = document.getElementById('ctx-copy');
+if (ctxCopyBtn) {
+    ctxCopyBtn.addEventListener('click', () => {
+    contextMenu.classList.remove('active');
+    if (!contextTargetId || !contextTargetId.startsWith('msg-')) return;
+    const idx = parseInt(contextTargetId.replace('msg-', ''));
+    const msg = currentChat.messages[idx];
+    if (msg) {
+        navigator.clipboard.writeText(msg.text).then(() => showToast('驛｢・ｧ繝ｻ・ｳ驛｢譎・ｱ堤ｹ晢ｽｻ驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ));
+    }
+});
+}
+
+const ctxFavToggleBtn = document.getElementById('ctx-fav-toggle');
+if (ctxFavToggleBtn) {
+    ctxFavToggleBtn.addEventListener('click', async () => {
+    contextMenu.classList.remove('active');
+    if (!contextTargetId || !contextTargetId.startsWith('msg-')) return;
+    const idx = parseInt(contextTargetId.replace('msg-', ''));
+    const msg = currentChat.messages[idx];
+    if (msg) {
+        msg.isFavorite = !msg.isFavorite;
+        await LineChatDB.updateChat(currentChat);
+        showToast(msg.isFavorite ? '驍ｵ・ｺ鬯・汚・ｽ・ｰ陷会ｽｱ遶頑･｢諤ｦ繝ｻ・･驛｢・ｧ驗呻ｽｫ遶企ｦｴ諱・・・ｽ髯ｷ莨夲ｽｿ・ｽ驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ : '鬮ｫ證ｦ・ｽ・｣鬯ｮ・ｯ繝ｻ・､驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ);
+    }
+});
+}
+
+// -- Crypto & Boot --
+async function hashStr(str) {
+    if (crypto.subtle) {
+        const raw = new TextEncoder().encode(str);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', raw);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } else {
+        // Fallback for file:// or unsecure HTTP
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0;
+        }
+        return hash.toString(16);
+    }
+}
+
+async function initCrypto(passcode) {
+    let saltB64 = localStorage.getItem('app_crypto_salt');
+    let salt;
+    if (!saltB64) {
+        salt = ArkiveCrypto.generateSalt();
+        localStorage.setItem('app_crypto_salt', ArkiveCrypto.saltToBase64(salt));
+    } else {
+        salt = ArkiveCrypto.base64ToSalt(saltB64);
+    }
+    // V21: Always encrypt with at least ark_default_secret
+    const key = await ArkiveCrypto.deriveKey(passcode || "ark_default_secret", salt);
+    LineChatDB.setKey(key);
+}
+
+async function initApp(isRestore = false) {
+    // V20-21: Unified initialization
+    await LineChatDB.init(); 
+    window.dbReady = true;
+    if (!isRestore) {
+        // Initial state for History API
+        history.replaceState({ view: UI_VIEWS.LIST }, "");
+    }
+    currentChat = null;
+    currentChatId = null;
+    window.isFakeMode = false;
+    
+    // Hide all main views
+    views.forEach(v => {
+        v.style.display = 'none';
+        v.classList.remove('active');
+    });
+    
+    if (mainApp) mainApp.style.display = 'flex';
+    if (listView) {
+        listView.classList.add('active');
+        listView.style.display = 'flex';
+    }
+    
+    await loadChatList();
+    initV21();
+}
+
+function findViewById(id) { return document.getElementById(id); }
+
+/**
+ * V21 History API Navigation
+ */
+window.pushViewState = function(state) {
+    history.pushState(state, "");
+    applyState(state);
+};
+
+window.onpopstate = function(event) {
+    if (event.state) {
+        applyState(event.state);
+    } else {
+        // Default to list if empty
+        applyState({ view: UI_VIEWS.LIST });
+    }
+};
+
+async function applyState(state) {
+    if (!mainApp) return; 
+    
+    try {
+        await waitDBReady();
+        closeAllModals(false); // Close modals without pushing state
+        
+        // Use the global views collection
+        views.forEach(v => {
+            v.style.display = 'none';
+            v.classList.remove('active');
+        });
+
+        if (state.view === UI_VIEWS.LIST) {
+            mainApp.style.display = 'flex';
+            listView.style.display = 'flex';
+            listView.classList.add('active');
+            await loadChatList();
+        } else if (state.view === UI_VIEWS.ROOM && state.chatId) {
+            mainApp.style.display = 'flex';
+            roomView.style.display = 'flex';
+            roomView.classList.add('active');
+            await openChatInternal(Number(state.chatId));
+        } else if (state.view === UI_VIEWS.MANUAL) {
+            manualView.style.display = 'flex';
+            manualView.classList.add('active');
+        } else if (state.view === UI_VIEWS.RANKING) {
+            mainApp.style.display = 'flex';
+            rankingView.style.display = 'flex';
+            rankingView.classList.add('active');
+        } else if (state.view === UI_VIEWS.FAKE) {
+            fakeApp.style.display = 'flex';
+            initFakeModeInternal();
+        }
+
+        // V40: Enhanced Modal Hierarchy Management
+        if (state.modal) {
+            if (state.modal === UI_MODALS.ROOM_SETTINGS && state.chatId) {
+                // Ensure room is rendered behind the modal
+                roomView.style.display = 'flex';
+                roomView.classList.add('active');
+                await openChatInternal(Number(state.chatId));
+            }
+            
+            if (state.modal === UI_MODALS.MEMO_LIST) {
+                initMemoInternal();
+            } else if (state.modal === UI_MODALS.SETTINGS) {
+                openSettingsInternal();
+            } else if (state.modal === UI_MODALS.ROOM_SETTINGS) {
+                openRoomSettingsInternal();
+            } else if (state.modal === UI_MODALS.ARCHIVED) {
+                renderArchivedList();
+                archivedModal.classList.remove('hidden');
+            } else if (state.modal === UI_MODALS.FAVORITES) {
+                openFavs(state.chatId);
+            } else if (state.modal === UI_MODALS.G_SEARCH) {
+                // V33: Reset Search UI (might have been hidden by Daily Logs)
+                const gModal = findViewById(UI_MODALS.G_SEARCH);
+                gModal.querySelector('h3').innerHTML = `髯ｷ闌ｨ・ｽ・ｨ驛｢譎冗樟郢晢ｽｻ驛｢・ｧ繝ｻ・ｯ髫ｶ髮｣・ｽ・ｪ髫ｴ繝ｻ・ｽ・ｭ髫ｶﾂ隲帙・・ｽ・ｴ繝ｻ・｢ (<span id="global-search-total-hits">0</span>髣比ｼ夲ｽｽ・ｶ)`;
+                findViewById('global-search-input').style.display = 'block';
+                findViewById('global-search-config').style.display = 'flex';
+                gModal.classList.remove('hidden');
+                findViewById('global-search-input').focus();
+            } else if (state.modal === UI_MODALS.G_CAL) {
+                await window.initGlobalCalendar();
+                findViewById(UI_MODALS.G_CAL).classList.remove('hidden');
+            } else if (state.modal === UI_MODALS.DATE) {
+                if (currentChat && currentChat.messages) {
+                    const centerIdx = typeof vScroll !== 'undefined' ? vScroll.getMiddleVisibleIndex() : 0;
+                    const centerMsg = currentChat.messages[centerIdx];
+                    let d = new Date();
+                    if (centerMsg && centerMsg.date) {
+                        const p = centerMsg.date.split('/');
+                        d = new Date(parseInt(p[0]), parseInt(p[1]) - 1, 1);
+                    }
+                    renderCalendar(currentChat.messages, { isGlobal: false }, d);
+                }
+                findViewById(UI_MODALS.DATE).classList.remove('hidden');
+            } else if (state.modal === UI_MODALS.ABOUT) {
+                findViewById(UI_MODALS.ABOUT).classList.remove('hidden');
+            } else {
+                const modal = findViewById(state.modal);
+                if (modal) modal.classList.remove('hidden');
+            }
+        }
+    } catch (e) {
+        console.error('applyState error:', e);
+        // V30: Fail-safe recovery to List View using global views
+        views.forEach(v => {
+            v.style.display = 'none';
+            v.classList.remove('active');
+        });
+        if (listView) {
+            listView.style.display = 'flex';
+            listView.classList.add('active');
+        }
+    }
+}
+
+function closeAllModals(push = true) {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(m => m.classList.add('hidden'));
+    
+    // If we closed a modal, we might need to update the history state if it was a push
+    // For simplicity, closeAllModals(false) is used in applyState.
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const savedHash = localStorage.getItem('app_password_hash');
+    const fakeHash = localStorage.getItem('app_fake_password_hash');
+
+    // V15-21 Auth Logic
+    if (!savedHash && !fakeHash) {
+        if (!window.crypto || !window.crypto.subtle) {
+            alert('髴托ｽｺ繝ｻ・ｰ髯溘・繝ｻ邵ｺ鬘費ｽｹ譎｢・ｽ・ｩ驛｢譎｢・ｽ・ｼ: HTTPS驍ｵ・ｺ繝ｻ・ｾ驍ｵ・ｺ雋・･繝ｻlocalhost驍ｵ・ｺ隰疲ｻゑｽｽ・ｿ郢晢ｽｻ繝ｻ・ｦ遶丞｣ｹﾂ蝣､・ｸ・ｺ郢晢ｽｻ);
+            return;
+        }
+        lockScreen.style.display = 'none';
+        mainApp.style.display = 'flex';
+        await initCrypto(""); // uses default secret internally in v21
+        await initApp();
+        return;
+    }
+
+    lockScreen.style.display = 'flex';
+    let passcodeFailCount = 0;
+    let passcodeLockEndTime = 0;
+    let lockInterval = null;
+
+    const updateLockDisplay = () => {
+        if (Date.now() < passcodeLockEndTime) {
+            const remain = Math.ceil((passcodeLockEndTime - Date.now()) / 1000);
+            passcodeError.textContent = `驛｢譎｢・ｽ・ｭ驛｢譏ｴ繝ｻ邵ｺ鬘悟初繝ｻ・ｭ驍ｵ・ｺ繝ｻ・ｧ驍ｵ・ｺ陷ｷ・ｶ・つ郢ｧ繝ｻ譌ｺ驍ｵ・ｺ繝ｻ・ｨ ${remain} 鬩募ｩ蟇・
+            return true;
+        } else {
+            if (lockInterval) {
+                clearInterval(lockInterval);
+                lockInterval = null;
+                passcodeError.textContent = '髯ｷﾂ隶主･・ｽｽ・ｺ繝ｻ・ｦ髯ｷ闌ｨ・ｽ・･髯ｷ迚呻ｽｸ蜻ｻ・ｼ・ｰ驍ｵ・ｺ繝ｻ・ｦ驍ｵ・ｺ闕ｳ蟯ｩ蜻ｳ驍ｵ・ｺ髴郁ｲｻ・ｼ繝ｻ;
+            }
+            return false;
+        }
+    };
+
+    const tryUnlock = async () => {
+        try {
+            if (!window.crypto || !window.crypto.subtle) {
+                alert('髫ｴ逕ｻﾂ諛亥ｷｮ髯具ｽｹ陋ｹ繝ｻ・ｽ・ｩ雋・ｽｯ郢晢ｽｻ郢晢ｽｻ郢晢ｽｻeb Crypto API郢晢ｽｻ陝ｲ・ｨ遯ｶ・ｲ驛｢・ｧ繝ｻ・ｵ驛｢譎・ｺ｢郢晢ｽｻ驛｢譎冗樟繝ｻ繝ｻ・ｹ・ｧ陟募ｨｯﾂ・ｻ驍ｵ・ｺ郢晢ｽｻ遶企・・ｸ・ｺ郢晢ｽｻ髢ｻ・ｸ髯溘・繝ｻ邵ｲ蝣､・ｸ・ｺ陷ｷ・ｶ・つ郢晢ｽｻTTPS髴托ｽｺ繝ｻ・ｰ髯溘・繝ｻ遶擾ｽｪ驍ｵ・ｺ雋・･繝ｻlocalhost驍ｵ・ｺ繝ｻ・ｧ髯橸ｽｳ雋・ｽｯ繝ｻ・｡陟暮ｯ会ｽｼ・ｰ驍ｵ・ｺ繝ｻ・ｦ驍ｵ・ｺ闕ｳ蟯ｩ蜻ｳ驍ｵ・ｺ髴郁ｲｻ・ｼ讓抵ｽｸ・ｲ郢晢ｽｻ);
+                return;
+            }
+
+            if (updateLockDisplay()) return;
+            const inputVal = (passcodeInput.value || "").trim();
+            
+            // 驛｢譎｢・ｽ・ｭ驛｢・ｧ繝ｻ・ｰ驍ｵ・ｺ繝ｻ・ｪ驍ｵ・ｺ繝ｻ・ｩ驍ｵ・ｺ繝ｻ・ｯ髯ｷ繝ｻ・ｽ・ｺ驍ｵ・ｺ髴域喚繝ｻ驍ｵ・ｺ郢晢ｽｻ遯ｶ・ｲ髯ｷﾂ郢晢ｽｻ・主､ゑｽｸ・ｺ繝ｻ・ｧ驛｢譏懶ｽｸ鄙ｫﾎ暮Δ・ｧ繝ｻ・ｷ驛｢譎｢・ｽ・･髯具ｽｹ郢晢ｽｻ
+            const currentHash = await hashStr(inputVal);
+            passcodeError.textContent = '';
+
+            // [6.2] Fake set, Real not set logic
+            // [6.2] Authentication Dispatch
+            const isFake = (fakeHash && currentHash === fakeHash);
+            const isReal = (savedHash && currentHash === savedHash);
+
+            if (isFake || isReal) {
+                lockScreen.style.display = 'none';
+                await initCrypto(inputVal);
+                
+                if (isFake) {
+                    if (mainApp) mainApp.classList.add('hidden');
+                    if (fakeApp) fakeApp.classList.remove('hidden');
+                    initMemo('fake');
+                } else {
+                    if (fakeApp) fakeApp.classList.add('hidden');
+                    if (mainApp) mainApp.classList.remove('hidden');
+                    if (listView) listView.classList.remove('hidden');
+                    await initApp();
+                }
+                return;
+            }
+
+            if (savedHash || fakeHash) {
+                // 髣包ｽｳ陜｣・ｺ繝ｻ・ｸ・つ鬮｢・ｾ繝ｻ・ｴ髫ｴ蠑ｱ・・ｹ晢ｽｻ髯ｷ繝ｻ・ｽ・ｦ鬨ｾ繝ｻ繝ｻ
+                passcodeFailCount++;
+                passcodeInput.value = '';
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                
+                // 驛｢譎・ｺ｢郢晢ｽ｣驛｢譎丞ｹｲ邵ｺ繝ｻ・ｹ譏ｴ繝ｻ郢晢ｽｻ驍ｵ・ｺ繝ｻ・ｯ髣包ｽｳ陝雜｣・ｽ・ｦ郢晢ｽｻ繝ｻ・ｼ髢ｧ・ｲ陋ｻ・､鬯ｮ・ｱ繝ｻ・｢鬮ｯ・ｦ繝ｻ・ｨ鬩穂ｼ夲ｽｽ・ｺ驍ｵ・ｺ繝ｻ・ｮ驍ｵ・ｺ繝ｻ・ｿ郢晢ｽｻ郢晢ｽｻ
+
+                if (passcodeFailCount >= 3) {
+                    const lockSeconds = 10 * Math.pow(2, passcodeFailCount - 3);
+                    passcodeLockEndTime = Date.now() + lockSeconds * 1000;
+                    lockInterval = setInterval(updateLockDisplay, 1000);
+                    updateLockDisplay();
+                } else {
+                    passcodeError.textContent = `驛｢譏懶ｽｻ・｣邵ｺ蟶ｷ・ｹ譎｢・ｽ・ｯ驛｢譎｢・ｽ・ｼ驛｢譎擾ｽｳ・ｨ遯ｶ・ｲ鬯ｩ謌奇ｽｼ雋ｻ・ｼ讓抵ｽｸ・ｺ繝ｻ・ｾ驍ｵ・ｺ陷ｻ・ｻ繝ｻ・ｼ郢晢ｽｻ{passcodeFailCount}髯懃軸・ｧ・ｫ繝ｻ・､繝ｻ・ｱ髫ｰ・ｨ隴会ｽｦ繝ｻ・ｼ髣輔・
+                }
+            }
+        } catch (e) {
+            console.error('Unlock fatal error:', e);
+        }
+    };
+
+    const lockForm = document.getElementById('lock-form');
+    lockForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await tryUnlock();
+    });
+
+    document.querySelectorAll('.key-btn').forEach(btn => {
+        btn.addEventListener('pointerdown', async (e) => {
+            if (Date.now() < passcodeLockEndTime) return e.preventDefault();
+            if (btn.type === 'submit') return;
+            e.preventDefault();
+            const val = btn.textContent;
+            if (val === 'Del') {
+                passcodeInput.value = passcodeInput.value.slice(0, -1);
+            } else {
+                passcodeInput.value += val;
+            }
+            passcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    });
+});
+
+// -- Settings Modal --
+settingsBtn.onclick = () => {
+    // V22: Use pushViewState
+    pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.SETTINGS });
+};
+
+// Internal open logic called by applyState
+function openSettingsInternal() {
+    const confirmPassInput = document.getElementById('confirm-password');
+    const fakePassInput = document.getElementById('fake-password');
+    const confirmFakePassInput = document.getElementById('confirm-fake-password');
+    
+    passToggle.checked = !!localStorage.getItem('app_password_hash');
+    passSetupContainer.style.display = passToggle.checked ? 'block' : 'none';
+    
+    newPassInput.value = '';
+    confirmPassInput.value = '';
+    fakePassInput.value = '';
+    confirmFakePassInput.value = '';
+    
+    settingsModal.classList.remove('hidden');
+}
+closeSettingsBtn.onclick = () => history.back();
+
+if (manualBtn) manualBtn.onclick = () => pushViewState({ view: UI_VIEWS.LIST, modal: UI_MODALS.MANUAL });
+if (closeManualBtn) closeManualBtn.onclick = () => history.back();
+
+passToggle.onchange = async () => {
+    if (passToggle.checked) {
+        passSetupContainer.style.display = 'block';
+    } else {
+        if (!confirm('驛｢譏懶ｽｻ・｣邵ｺ蟶ｷ・ｹ・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・ｼ驛｢譎擾ｽｳ・ｨ繝ｻ螳夲ｽｾ貊ゑｽｽ・｡髯ｷ莨夲ｽｽ・ｹ驍ｵ・ｺ繝ｻ・ｫ驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷ｷ・ｶ・ゑｽｰ郢晢ｽｻ雋・･ﾎ咎Δ譎｢・ｽ・ｼ驛｢・ｧ繝ｻ・ｿ驍ｵ・ｺ繝ｻ・ｯ髫ｴ逕ｻﾂ諛亥ｷｮ髯具ｽｹ隰費ｽｶ繝ｻ繝ｻ・ｹ・ｧ陟募ｨｯ繝ｻ驍ｵ・ｺ繝ｻ・ｫ髣厄ｽｫ隴取得・ｽ・ｭ陋滂ｽ･繝ｻ繝ｻ・ｹ・ｧ陟暮ｯ会ｽｽ迢暦ｽｹ・ｧ陋ｹ・ｻ遶包ｽｧ驍ｵ・ｺ繝ｻ・ｫ驍ｵ・ｺ繝ｻ・ｪ驛｢・ｧ驗呻ｽｫ遶擾ｽｪ驍ｵ・ｺ陷ｷ・ｶ・つ郢晢ｽｻ)) {
+            passToggle.checked = true;
+            return;
+        }
+        showLoading();
+        try {
+            // 1. 髫ｴ魃会ｽｽ・ｧ鬯ｪ・ｰ繝ｻ・ｵ驍ｵ・ｺ繝ｻ・ｧ驛｢譏ｴ繝ｻ郢晢ｽｻ驛｢・ｧ繝ｻ・ｿ驛｢・ｧ陞ｳ螟ｲ・ｽ・ｪ繝ｻ・ｭ驍ｵ・ｺ繝ｻ・ｿ髯ｷ繝ｻ・ｽ・ｺ驍ｵ・ｺ郢晢ｽｻ
+            const chats = await LineChatDB.getAllChats();
+            const settings = await LineChatDB.getAllSettings();
+
+            // 2. 鬯ｪ・ｰ繝ｻ・ｵ驍ｵ・ｺ繝ｻ・ｮ鬮ｫ・ｪ繝ｻ・ｭ髯橸ｽｳ陞｢・ｹ繝ｻ蝣､・ｹ・ｧ繝ｻ・ｯ驛｢譎｢・ｽ・ｪ驛｢・ｧ繝ｻ・｢
+            passSetupContainer.style.display = 'none';
+            localStorage.removeItem('app_password_hash');
+            localStorage.removeItem('app_fake_password_hash');
+            await initCrypto(""); // 驛｢譏ｴ繝ｻ郢晢ｽｵ驛｢・ｧ繝ｻ・ｩ驛｢譎｢・ｽ・ｫ驛｢譎∬か繝ｻ・ｼ闔・･繝ｻ・ｹ繝ｻ・ｳ髫ｴ竏壹・繝ｻ・ｼ髯具ｽｾ陟擾ｽｯ驍ｵ・ｺ繝ｻ・ｫ髫ｴ蜴・ｽｽ・ｴ髫ｴ繝ｻ・ｽ・ｰ
+
+            // 3. 髫ｴ繝ｻ・ｽ・ｰ驍ｵ・ｺ陷会ｽｱ繝ｻ讚・ｽｿ・･繝ｻ・ｶ髫ｲ・ｷ闕ｵ譏ｴﾂ蝣､・ｸ・ｺ陷ｷ・ｶ遶冗距・ｸ・ｺ繝ｻ・ｦ髣厄ｽｫ隴取得・ｽ・ｭ陋滂ｽ･繝ｻ・ｰ鬨ｾ・ｶ繝ｻ・ｴ驍ｵ・ｺ郢晢ｽｻ
+            for (const chat of chats) {
+                await LineChatDB.updateChat(chat);
+            }
+            for (const key in settings) {
+                await LineChatDB.setSetting(key, settings[key]);
+            }
+
+            showToast('驛｢譏懶ｽｻ・｣邵ｺ蟶ｷ・ｹ・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・ｼ驛｢譎擾ｽｳ・ｨ・取ｺｽ・ｹ譏ｴ繝ｻ邵ｺ驢搾ｽｹ・ｧ陜｣・､隨冗霜諤上・・ｹ驍ｵ・ｺ繝ｻ・ｫ驍ｵ・ｺ陷会ｽｱ遶擾ｽｪ驍ｵ・ｺ陷会ｽｱ隨ｳ繝ｻ);
+        } catch (err) {
+            console.error('Disable passcode error:', err);
+            passToggle.checked = true;
+        } finally {
+            hideLoading();
+        }
+    }
+};
+
+    // v54: 髣厄ｽｫ隴取得・ｽ・ｭ陋滂ｽ･郢晢ｽｻ驛｢・ｧ繝ｻ・ｿ驛｢譎｢・ｽ・ｳ驍ｵ・ｺ繝ｻ・ｮ髯具ｽｻ郢晢ｽｻ陞ｻ・ｬ驍ｵ・ｺ繝ｻ・ｫ髣費ｽｨ繝ｻ・ｴ驍ｵ・ｺ郢晢ｽｻ・つ遶乗剌閹夐し・ｺ郢晢ｽｻsubmit 驛｢譏懶ｽｸ闔橸ｽｦ驛｢譎擾ｽｳ・ｨ・主ｸｷ・ｸ・ｺ繝ｻ・ｯ髣包ｽｳ陝雜｣・ｽ・ｦ遶丞｣ｺ繝ｻ驍ｵ・ｺ雋・∞・ｽ竏ｫ・ｹ・ｧ繝ｻ・ｳ驛｢譎｢・ｽ・｡驛｢譎｢・ｽ・ｳ驛｢譎冗樟邵ｺ繝ｻ・ｹ・ｧ繝ｻ・ｦ驛｢譎冗樟遶擾ｽｪ驍ｵ・ｺ雋・･繝ｻ髯ｷ蜿ｰ・ｼ竏晄ｱ・
+    // 驍ｵ・ｺ髦ｮ蜷ｶ繝ｻ鬯ｩ蟷｢・ｽ・ｨ髯具ｽｻ郢晢ｽｻ郢晢ｽｻ髫ｴ繝ｻ・ｽ・ｰ驛｢譎・鯵邵ｺ・｡驛｢譎｢・ｽ・ｳ髯句ｹ｢・ｽ・ｴ驍ｵ・ｺ繝ｻ・ｮ onclick 驍ｵ・ｺ繝ｻ・ｧ髯ｷ繝ｻ・ｽ・ｦ鬨ｾ繝ｻ繝ｻ繝ｻ・ｰ驍ｵ・ｺ繝ｻ・ｾ驍ｵ・ｺ郢晢ｽｻ
+
+function showTooltip(text, x, y) {
+    longpressTooltip.textContent = text;
+    longpressTooltip.style.left = `${x}px`;
+    longpressTooltip.style.top = `${y}px`;
+    longpressTooltip.classList.remove('hidden');
+    if (navigator.vibrate) navigator.vibrate(20);
+}
+
+function hideTooltip() {
+    longpressTooltip.classList.add('hidden');
+}
+
+vScroll.setScrollCallback((startIndex) => {
+    if (!currentChat || !currentChat.messages) return;
+    const msg = currentChat.messages[startIndex];
+    if (msg) {
+        if (msg.date) {
+            if (scrollDateLabel) scrollDateLabel.textContent = msg.date;
+        } else if (msg.type === 'date') {
+            const match = msg.text.match(/^(\d{4}\/\d{1,2}\/\d{1,2})/);
+            if (match && scrollDateLabel) scrollDateLabel.textContent = match[1];
+        }
+    }
+});
+
+vScroll.setRenderer((item, index) => {
+    const el = document.createElement('div');
+    el.className = 'message-row';
+
+    if (item.type === 'date') {
+        el.innerHTML = `<div class="date-label">${item.text}</div>`;
+    } else if (item.type === 'sys') {
+        el.innerHTML = `<div class="date-label" style="opacity:0.8; font-weight:normal;">${item.text}</div>`;
+    } else {
+        let isSelfMsg = false;
+        if (currentChat && currentChat.myName) {
+            isSelfMsg = (item.sender === currentChat.myName);
+        }
+        if (flipSender) isSelfMsg = !isSelfMsg;
+        
+        const isHighlight = searchHighlightIndices.has(index);
+        const isActiveHighlight = (index === activeSearchIndexValue);
+        
+        let safeText = item.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        if (isHighlight && window.searchKeyword) {
+            try {
+                const tokens = window.searchKeyword.split(/\s+/).filter(t => t.length > 0 && !t.startsWith('-'));
+                const highlightPattern = tokens.length > 0 ? tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') : "";
+                if (highlightPattern) {
+                    const regex = new RegExp(`(${highlightPattern})`, 'gi');
+                    safeText = safeText.replace(regex, '<mark>$1</mark>');
+                }
+            } catch(e){}
+        }
+        
+        let formattedText = safeText.replace(/\n/g, '<br>');
